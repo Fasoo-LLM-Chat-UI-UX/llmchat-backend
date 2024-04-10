@@ -9,16 +9,16 @@ import org.springframework.context.annotation.Configuration
 
 @Configuration
 class SwaggerConfiguration(private val objectMapper: ObjectMapper) {
-
     @PostConstruct
     fun initialize() {
-        val innerClassAwareTypeNameResolver = object : TypeNameResolver() {
-            override fun getNameOfClass(cls: Class<*>): String {
-                return cls.name
-                    .substringAfterLast(".")
-                    .replace("$", "")
+        val innerClassAwareTypeNameResolver =
+            object : TypeNameResolver() {
+                override fun getNameOfClass(cls: Class<*>): String {
+                    return cls.name
+                        .substringAfterLast(".")
+                        .replace("$", "")
+                }
             }
-        }
 
         ModelConverters
             .getInstance()

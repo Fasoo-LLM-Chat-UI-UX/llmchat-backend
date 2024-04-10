@@ -8,7 +8,6 @@ import org.springframework.web.bind.annotation.RestController
 class HelloWorldController(
     private val helloWorldService: HelloWorldService,
 ) {
-
     @GetMapping("/hello")
     fun hello(): List<HelloWorldDto.Response> {
         return helloWorldService.hello()
