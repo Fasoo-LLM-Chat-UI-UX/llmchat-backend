@@ -1,0 +1,14 @@
+name: llmchat
+services:
+  mysql:
+    image: mysql:8.0.36
+    ports:
+      - 3306:3306
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: llmchat
+    volumes:
+      - mysql-data:/var/lib/mysql
+
+volumes:
+  mysql-data:

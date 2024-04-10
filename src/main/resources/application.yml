@@ -1,0 +1,15 @@
+server:
+  port: 8080
+  shutdown: graceful
+
+spring:
+  profiles:
+    default: local
+  application:
+    name: llmchat
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false

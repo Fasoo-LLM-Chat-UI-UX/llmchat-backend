@@ -4,8 +4,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication
 import org.springframework.boot.runApplication
 
 @SpringBootApplication
-class LlmchatApplication
+class LlmChatApplication
 
 fun main(args: Array<String>) {
-	runApplication<LlmchatApplication>(*args)
+	runApplication<LlmChatApplication>(*args)
 }
