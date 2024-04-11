@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.service
 
+import kr.ac.kau.llmchat.domain.HelloWorldEntity
 import kr.ac.kau.llmchat.domain.HelloWorldRepository
 import org.springframework.stereotype.Service
 

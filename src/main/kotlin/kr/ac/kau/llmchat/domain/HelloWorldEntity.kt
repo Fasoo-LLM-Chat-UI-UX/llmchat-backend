@@ -1,4 +1,4 @@
-package kr.ac.kau.llmchat.service
+package kr.ac.kau.llmchat.domain
 
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
