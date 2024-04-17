@@ -23,4 +23,4 @@
 적절한 수준의 추상화를 통해, 다른 AI API로 전환해야 할 때 용이할 것으로 기대합니다.
 
 ## 서버 배포
-1. TODO
+1. main 브랜치에 코드가 푸시되면 자동으로 서버에 배포됩니다. 이 프로세스는 [GitHub Actions](https://github.com/Fasoo-LLM-Chat-UI-UX/llmchat-backend/blob/main/.github/workflows/cd.yml)를 통해 진행됩니다.
