@@ -9,10 +9,10 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import kr.ac.kau.llmchat.domain.auth.UserEntity
+import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
+import org.hibernate.annotations.UpdateTimestamp
 import org.hibernate.type.SqlTypes
-import org.springframework.data.annotation.CreatedDate
-import org.springframework.data.annotation.LastModifiedDate
 import java.time.Instant
 
 @Entity(name = "deleted_threads")
@@ -29,10 +29,10 @@ class DeletedThreadEntity(
     @JdbcTypeCode(SqlTypes.JSON)
     var chatContent: List<ChatContent>,
     @Column(nullable = false)
-    @CreatedDate
+    @CreationTimestamp
     var createdAt: Instant = Instant.EPOCH,
     @Column(nullable = false)
-    @LastModifiedDate
+    @UpdateTimestamp
     var deletedAt: Instant = Instant.EPOCH,
 ) {
     data class ChatContent(

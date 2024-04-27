@@ -10,7 +10,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
-import org.springframework.data.annotation.CreatedDate
+import org.hibernate.annotations.CreationTimestamp
 import java.time.Instant
 
 @Entity(name = "social_accounts")
@@ -27,7 +27,7 @@ class SocialAccountEntity(
     @Column(nullable = false, length = 255)
     var uid: String,
     @Column(nullable = false)
-    @CreatedDate
+    @CreationTimestamp
     var dateJoined: Instant = Instant.EPOCH,
     @Column(nullable = true)
     var lastLogin: Instant?,

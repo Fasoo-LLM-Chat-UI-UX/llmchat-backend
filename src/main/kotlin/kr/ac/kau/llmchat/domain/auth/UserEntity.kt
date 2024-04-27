@@ -5,7 +5,7 @@ import jakarta.persistence.Entity
 import jakarta.persistence.GeneratedValue
 import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
-import org.springframework.data.annotation.CreatedDate
+import org.hibernate.annotations.CreationTimestamp
 import java.time.Instant
 
 @Entity(name = "users")
@@ -24,7 +24,7 @@ class UserEntity(
     @Column(nullable = false, length = 255)
     var name: String,
     @Column(nullable = false)
-    @CreatedDate
+    @CreationTimestamp
     var dateJoined: Instant = Instant.EPOCH,
     @Column(nullable = true)
     var lastLogin: Instant?,

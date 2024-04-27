@@ -9,8 +9,8 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import kr.ac.kau.llmchat.domain.auth.UserEntity
-import org.springframework.data.annotation.CreatedDate
-import org.springframework.data.annotation.LastModifiedDate
+import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.UpdateTimestamp
 import java.time.Instant
 
 @Entity(name = "threads")
@@ -24,9 +24,9 @@ class ThreadEntity(
     @Column(nullable = false, length = 255)
     var chatName: String,
     @Column(nullable = false)
-    @CreatedDate
+    @CreationTimestamp
     var createdAt: Instant = Instant.EPOCH,
     @Column(nullable = false)
-    @LastModifiedDate
+    @UpdateTimestamp
     var updatedAt: Instant = Instant.EPOCH,
 )

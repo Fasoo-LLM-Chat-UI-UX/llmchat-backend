@@ -9,9 +9,9 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
 import kr.ac.kau.llmchat.domain.auth.UserEntity
+import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
-import org.springframework.data.annotation.CreatedDate
 import java.time.Instant
 
 @Entity(name = "archived_threads")
@@ -32,7 +32,7 @@ class ArchivedThreadEntity(
     @Column(nullable = false)
     var createdAt: Instant,
     @Column(nullable = false)
-    @CreatedDate
+    @CreationTimestamp
     var archivedAt: Instant = Instant.EPOCH,
 ) {
     data class ChatContent(
