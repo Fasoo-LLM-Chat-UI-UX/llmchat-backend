@@ -1,7 +1,9 @@
 package kr.ac.kau.llmchat.controller.auth
 
+import io.jsonwebtoken.security.Keys
 import io.swagger.v3.oas.annotations.responses.ApiResponse
 import kr.ac.kau.llmchat.service.auth.AuthService
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
 import org.springframework.security.core.annotation.AuthenticationPrincipal
@@ -16,7 +18,10 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("/api/v1/auth")
 class AuthController(
     private val authService: AuthService,
+    @Value("\${llmchat.auth.jwt-secret}") secretKey: String,
 ) {
+    val key = Keys.hmacShaKeyFor(secretKey.toByteArray())
+
     @PostMapping("/register-by-username")
     @ApiResponse(responseCode = "201", description = "Created")
     fun registerByUsername(

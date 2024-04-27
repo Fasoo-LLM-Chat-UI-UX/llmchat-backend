@@ -1,11 +1,15 @@
 package kr.ac.kau.llmchat.service.auth
 
+import io.jsonwebtoken.Jwts
+import io.jsonwebtoken.security.Keys
 import kr.ac.kau.llmchat.controller.auth.AuthDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.auth.UserRepository
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import java.util.Date
+import javax.crypto.SecretKey
 
 @Service
 class AuthService(
@@ -13,6 +17,8 @@ class AuthService(
     private val passwordEncoder: PasswordEncoder,
     @Value("\${llmchat.auth.jwt-secret}") private val jwtSecret: String,
 ) {
+    val key: SecretKey = Keys.hmacShaKeyFor(jwtSecret.toByteArray())
+
     fun registerByUsername(dto: AuthDto.RegisterByUsernameRequest) {
         val username = dto.username.lowercase()
 
@@ -50,7 +56,15 @@ class AuthService(
     }
 
     private fun generateJwtToken(user: UserEntity): String {
-        // TODO: Implement JWT token generation
-        return "TODO"
+        val claims = Jwts.claims().subject(user.username).build()
+        val now = Date()
+        val validity = Date(now.time + 1000 * 60 * 60) // 1 hour
+
+        return Jwts.builder()
+            .claims(claims)
+            .issuedAt(now)
+            .expiration(validity)
+            .signWith(key, Jwts.SIG.HS512)
+            .compact()
     }
 }
