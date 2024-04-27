@@ -3,3 +3,7 @@ spring:
     url: jdbc:mysql://localhost:3306/llmchat
     username: root
     password: root
+
+llmchat:
+  auth:
+    jwt-secret: secret

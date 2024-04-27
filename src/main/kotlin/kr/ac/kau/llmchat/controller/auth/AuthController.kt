@@ -17,13 +17,21 @@ import org.springframework.web.bind.annotation.RestController
 class AuthController(
     private val authService: AuthService,
 ) {
-    @PostMapping("/register-by-email")
+    @PostMapping("/register-by-username")
     @ApiResponse(responseCode = "201", description = "Created")
-    fun registerByEmail(
-        @RequestBody dto: AuthDto.RegisterByEmailRequest,
+    fun registerByUsername(
+        @RequestBody dto: AuthDto.RegisterByUsernameRequest,
     ): ResponseEntity<Unit> {
-        authService.registerByEmail(dto = dto)
+        authService.registerByUsername(dto = dto)
         return ResponseEntity.status(HttpStatus.CREATED).build()
+    }
+
+    @PostMapping("/login-by-username")
+    fun loginByUsername(
+        @RequestBody dto: AuthDto.LoginByUsernameRequest,
+    ): ResponseEntity<String> {
+        val token = authService.loginByUsername(dto = dto)
+        return ResponseEntity.ok(token)
     }
 
     @GetMapping("/ping")
