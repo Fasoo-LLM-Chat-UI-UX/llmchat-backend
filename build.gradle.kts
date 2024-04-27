@@ -37,6 +37,7 @@ dependencies {
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
     implementation("com.squareup.retrofit2:converter-jackson:2.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
+    implementation("org.zalando:problem-spring-web-starter:0.29.1")
     runtimeOnly("com.mysql:mysql-connector-j")
     testImplementation("org.springframework.boot:spring-boot-starter-test")
 }
