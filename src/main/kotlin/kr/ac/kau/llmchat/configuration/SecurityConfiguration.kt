@@ -12,6 +12,14 @@ class SecurityConfiguration {
         http
             .authorizeHttpRequests { authorizeRequests ->
                 authorizeRequests
+                    .requestMatchers(
+                        "/api/v1/auth/register-by-email",
+                    )
+                    .permitAll()
+                    .requestMatchers(
+                        "/api/v1/**",
+                    )
+                    .authenticated()
                     .anyRequest()
                     .permitAll()
             }

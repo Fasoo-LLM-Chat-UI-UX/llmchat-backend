@@ -8,6 +8,7 @@ import org.zalando.problem.Problem
 import org.zalando.problem.Status
 import org.zalando.problem.spring.web.advice.AdviceTrait
 import org.zalando.problem.spring.web.advice.ProblemHandling
+import org.zalando.problem.spring.web.advice.security.SecurityAdviceTrait
 
 interface IllegalArgumentExceptionTrait : AdviceTrait {
     @ExceptionHandler
@@ -20,4 +21,4 @@ interface IllegalArgumentExceptionTrait : AdviceTrait {
 }
 
 @ControllerAdvice
-class ExceptionHandling : ProblemHandling, IllegalArgumentExceptionTrait
+class ExceptionHandling : ProblemHandling, IllegalArgumentExceptionTrait, SecurityAdviceTrait
