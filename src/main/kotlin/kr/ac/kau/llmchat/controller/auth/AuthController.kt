@@ -29,9 +29,9 @@ class AuthController(
     @PostMapping("/login-by-username")
     fun loginByUsername(
         @RequestBody dto: AuthDto.LoginByUsernameRequest,
-    ): ResponseEntity<String> {
+    ): ResponseEntity<AuthDto.LoginResponse> {
         val token = authService.loginByUsername(dto = dto)
-        return ResponseEntity.ok(token)
+        return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
     }
 
     @GetMapping("/ping")
