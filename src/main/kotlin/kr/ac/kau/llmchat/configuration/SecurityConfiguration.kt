@@ -15,6 +15,10 @@ class SecurityConfiguration {
                     .anyRequest()
                     .permitAll()
             }
+            .csrf { csrf ->
+                csrf
+                    .disable()
+            }
 
         return http.build()
     }
