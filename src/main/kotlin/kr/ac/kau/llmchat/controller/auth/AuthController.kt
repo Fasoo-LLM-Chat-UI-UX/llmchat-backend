@@ -35,6 +35,14 @@ class AuthController(
         return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
     }
 
+    @PostMapping("/login-by-google")
+    fun loginByGoogle(
+        @RequestBody dto: AuthDto.LoginByGoogleRequest,
+    ): ResponseEntity<AuthDto.LoginResponse> {
+        val token = authService.loginByGoogle(dto = dto)
+        return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
+    }
+
     @GetMapping("/ping")
     @SecurityRequirement(name = "Authorization")
     fun ping(): ResponseEntity<String> {

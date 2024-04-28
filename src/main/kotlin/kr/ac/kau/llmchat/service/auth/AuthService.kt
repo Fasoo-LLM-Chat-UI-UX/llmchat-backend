@@ -1,27 +1,84 @@
 package kr.ac.kau.llmchat.service.auth
 
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.PropertyNamingStrategies
+import com.fasterxml.jackson.databind.annotation.JsonNaming
 import io.jsonwebtoken.Jwts
 import io.jsonwebtoken.security.Keys
 import jakarta.transaction.Transactional
 import kr.ac.kau.llmchat.controller.auth.AuthDto
+import kr.ac.kau.llmchat.domain.auth.ProviderEnum
+import kr.ac.kau.llmchat.domain.auth.SocialAccountEntity
+import kr.ac.kau.llmchat.domain.auth.SocialAccountRepository
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.auth.UserRepository
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import org.springframework.beans.factory.annotation.Value
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken
 import org.springframework.security.core.Authentication
 import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
+import retrofit2.Call
+import retrofit2.Retrofit
+import retrofit2.converter.jackson.JacksonConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Query
 import java.time.Instant
 import java.util.Date
+import java.util.concurrent.TimeUnit
 import javax.crypto.SecretKey
+
+interface AuthApi {
+    @GET("https://www.googleapis.com/oauth2/v3/userinfo")
+    fun getGoogleUserInfo(
+        @Query("access_token")
+        accessToken: String,
+    ): Call<GoogleUserInfo>
+}
+
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class GoogleUserInfo(
+    val sub: String,
+    val name: String,
+    val givenName: String,
+    val familyName: String,
+    val picture: String,
+    val email: String,
+    val emailVerified: Boolean,
+    val locale: String,
+)
 
 @Service
 class AuthService(
-    private val userRepository: UserRepository,
-    private val passwordEncoder: PasswordEncoder,
+    objectMapper: ObjectMapper,
     @Value("\${llmchat.auth.jwt-secret}") private val jwtSecret: String,
+    private val userRepository: UserRepository,
+    private val socialAccountRepository: SocialAccountRepository,
+    private val passwordEncoder: PasswordEncoder,
 ) {
     val key: SecretKey = Keys.hmacShaKeyFor(jwtSecret.toByteArray())
+
+    private val apiClient =
+        Retrofit.Builder()
+            .baseUrl("http://localhost/") // Required but not used
+            .addConverterFactory(JacksonConverterFactory.create(objectMapper))
+            .client(
+                OkHttpClient
+                    .Builder()
+                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .addInterceptor(
+                        HttpLoggingInterceptor().apply {
+                            level = HttpLoggingInterceptor.Level.BASIC
+                        },
+                    )
+                    .build(),
+            )
+            .build()
+            .create(AuthApi::class.java)
 
     fun registerByUsername(dto: AuthDto.RegisterByUsernameRequest) {
         val username = dto.username.lowercase()
@@ -60,6 +117,50 @@ class AuthService(
         }
 
         return generateJwtToken(user)
+    }
+
+    @Transactional
+    fun loginByGoogle(dto: AuthDto.LoginByGoogleRequest): String {
+        val response = apiClient.getGoogleUserInfo(dto.accessToken).execute()
+        if (!response.isSuccessful) {
+            throw IllegalArgumentException("The given access token is either invalid or expired")
+        }
+        val responseBody = response.body()!!
+
+        val socialAccount = socialAccountRepository.findByUidAndProvider(responseBody.sub, ProviderEnum.GOOGLE)
+        if (socialAccount != null) {
+            socialAccount.lastLogin = Instant.now()
+            socialAccount.user.lastLogin = Instant.now()
+            socialAccount.token = dto.accessToken
+            socialAccount.tokenExpires = Instant.now().plusSeconds(3599)
+
+            return generateJwtToken(socialAccount.user)
+        } else {
+            val newUser =
+                UserEntity(
+                    username = "google_${responseBody.sub}",
+                    password = null,
+                    email = responseBody.email,
+                    mobileNumber = null,
+                    name = response.body()!!.name,
+                    lastLogin = Instant.now(),
+                )
+            val newSocialAccount =
+                SocialAccountEntity(
+                    user = newUser,
+                    provider = ProviderEnum.GOOGLE,
+                    uid = responseBody.sub,
+                    lastLogin = Instant.now(),
+                    token = dto.accessToken,
+                    tokenSecret = "",
+                    tokenExpires = Instant.now().plusSeconds(3599),
+                )
+
+            userRepository.save(newUser)
+            socialAccountRepository.save(newSocialAccount)
+
+            return generateJwtToken(newSocialAccount.user)
+        }
     }
 
     fun generateJwtToken(user: UserEntity): String {

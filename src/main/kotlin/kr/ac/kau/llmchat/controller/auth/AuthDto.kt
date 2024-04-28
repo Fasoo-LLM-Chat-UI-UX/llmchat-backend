@@ -14,6 +14,10 @@ sealed class AuthDto {
         val password: String,
     )
 
+    data class LoginByGoogleRequest(
+        val accessToken: String,
+    )
+
     data class LoginResponse(
         val token: String,
     )
