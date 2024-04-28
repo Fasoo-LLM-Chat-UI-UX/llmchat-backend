@@ -1,14 +1,19 @@
 package kr.ac.kau.llmchat.configuration
 
+import kr.ac.kau.llmchat.service.auth.AuthService
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
 import org.springframework.security.web.SecurityFilterChain
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter
 
 @Configuration
 class SecurityConfiguration {
     @Bean
-    fun filterChain(http: HttpSecurity): SecurityFilterChain {
+    fun filterChain(
+        http: HttpSecurity,
+        authService: AuthService,
+    ): SecurityFilterChain {
         http
             .authorizeHttpRequests { authorizeRequests ->
                 authorizeRequests
@@ -28,6 +33,10 @@ class SecurityConfiguration {
                 csrf
                     .disable()
             }
+            .addFilterBefore(
+                JwtAuthenticationFilter(authService = authService),
+                UsernamePasswordAuthenticationFilter::class.java,
+            )
 
         return http.build()
     }
