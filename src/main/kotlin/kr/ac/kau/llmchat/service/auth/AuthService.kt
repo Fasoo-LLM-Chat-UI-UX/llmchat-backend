@@ -65,7 +65,7 @@ class AuthService(
     fun generateJwtToken(user: UserEntity): String {
         val claims = Jwts.claims().subject(user.username).build()
         val now = Date()
-        val validity = Date(now.time + 1000 * 60 * 60) // 1 hour
+        val validity = Date(now.time + 1000 * 60 * 60 * 24) // 1 day
 
         return Jwts.builder()
             .claims(claims)
