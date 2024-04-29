@@ -1,8 +1,8 @@
-package kr.ac.kau.llmchat.controller.preference
+package kr.ac.kau.llmchat.controller.user
 
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import kr.ac.kau.llmchat.domain.auth.UserEntity
-import kr.ac.kau.llmchat.service.preference.UserPreferenceService
+import kr.ac.kau.llmchat.service.user.UserPreferenceService
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping

@@ -1,13 +1,13 @@
-package kr.ac.kau.llmchat.service.preference
+package kr.ac.kau.llmchat.service.user
 
-import kr.ac.kau.llmchat.controller.preference.UserPreferenceDto
+import kr.ac.kau.llmchat.controller.user.UserPreferenceDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
-import kr.ac.kau.llmchat.domain.preference.ModelVersionEnum
-import kr.ac.kau.llmchat.domain.preference.SpeechVoiceEnum
-import kr.ac.kau.llmchat.domain.preference.UILanguageCodeEnum
-import kr.ac.kau.llmchat.domain.preference.UIThemeEnum
-import kr.ac.kau.llmchat.domain.preference.UserPreferenceEntity
-import kr.ac.kau.llmchat.domain.preference.UserPreferenceRepository
+import kr.ac.kau.llmchat.domain.user.ModelVersionEnum
+import kr.ac.kau.llmchat.domain.user.SpeechVoiceEnum
+import kr.ac.kau.llmchat.domain.user.UILanguageCodeEnum
+import kr.ac.kau.llmchat.domain.user.UIThemeEnum
+import kr.ac.kau.llmchat.domain.user.UserPreferenceEntity
+import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 

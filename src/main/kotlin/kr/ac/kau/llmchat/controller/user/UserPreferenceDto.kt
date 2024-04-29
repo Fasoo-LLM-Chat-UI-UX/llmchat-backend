@@ -1,9 +1,9 @@
-package kr.ac.kau.llmchat.controller.preference
+package kr.ac.kau.llmchat.controller.user
 
-import kr.ac.kau.llmchat.domain.preference.ModelVersionEnum
-import kr.ac.kau.llmchat.domain.preference.SpeechVoiceEnum
-import kr.ac.kau.llmchat.domain.preference.UILanguageCodeEnum
-import kr.ac.kau.llmchat.domain.preference.UIThemeEnum
+import kr.ac.kau.llmchat.domain.user.ModelVersionEnum
+import kr.ac.kau.llmchat.domain.user.SpeechVoiceEnum
+import kr.ac.kau.llmchat.domain.user.UILanguageCodeEnum
+import kr.ac.kau.llmchat.domain.user.UIThemeEnum
 
 sealed class UserPreferenceDto {
     data class GetPreferenceResponse(

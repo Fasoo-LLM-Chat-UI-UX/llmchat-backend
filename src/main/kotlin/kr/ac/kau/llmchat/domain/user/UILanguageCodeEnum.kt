@@ -1,4 +1,4 @@
-package kr.ac.kau.llmchat.domain.preference
+package kr.ac.kau.llmchat.domain.user
 
 @Suppress("EnumEntryName")
 enum class UILanguageCodeEnum {

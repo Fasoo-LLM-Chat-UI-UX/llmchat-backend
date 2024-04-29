@@ -1,4 +1,4 @@
-package kr.ac.kau.llmchat.domain.preference
+package kr.ac.kau.llmchat.domain.user
 
 enum class ModelVersionEnum {
     GPT_3_5,
