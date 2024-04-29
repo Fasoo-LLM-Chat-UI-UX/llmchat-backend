@@ -18,6 +18,10 @@ sealed class AuthDto {
         val accessToken: String,
     )
 
+    data class LoginByKakaoRequest(
+        val code: String,
+    )
+
     data class LoginResponse(
         val token: String,
     )

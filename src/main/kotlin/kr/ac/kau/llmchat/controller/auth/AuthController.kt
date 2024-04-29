@@ -43,6 +43,14 @@ class AuthController(
         return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
     }
 
+    @PostMapping("/login-by-kakao")
+    fun loginByKakao(
+        @RequestBody dto: AuthDto.LoginByKakaoRequest,
+    ): ResponseEntity<AuthDto.LoginResponse> {
+        val token = authService.loginByKakao(dto = dto)
+        return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
+    }
+
     @GetMapping("/ping")
     @SecurityRequirement(name = "Authorization")
     fun ping(): ResponseEntity<String> {

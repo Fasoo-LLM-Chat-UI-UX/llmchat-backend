@@ -7,3 +7,5 @@ spring:
 llmchat:
   auth:
     jwt-secret: secretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecr
+    kakao:
+      client-id: dummy-client-id

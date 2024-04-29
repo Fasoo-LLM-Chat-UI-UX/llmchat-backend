@@ -36,6 +36,22 @@ interface AuthApi {
         @Query("access_token")
         accessToken: String,
     ): Call<GoogleUserInfo>
+
+    @GET("https://kauth.kakao.com/oauth/token")
+    fun getKakaoAccessToken(
+        @Query("client_id")
+        clientId: String,
+        @Query("grant_type")
+        grantType: String = "authorization_code",
+        @Query("code")
+        code: String,
+    ): Call<KakaoAccessToken>
+
+    @GET("https://kapi.kakao.com/v2/user/me")
+    fun getKakaoUserInfo(
+        @Query("access_token")
+        accessToken: String,
+    ): Call<KakaoUserInfo>
 }
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
@@ -50,10 +66,61 @@ data class GoogleUserInfo(
     val locale: String,
 )
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class KakaoAccessToken(
+    val accessToken: String,
+    // "bearer"
+    val tokenType: String,
+    val refreshToken: String,
+    // 7199
+    val expiresIn: Long,
+    // "account_email profile_image profile_nickname"
+    val scope: String,
+    // 5183999
+    val refreshTokenExpiresIn: Long,
+)
+
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class KakaoUserInfo(
+    val id: Long,
+    val connectedAt: Instant,
+    val properties: Properties,
+    val kakaoAccount: KakaoAccount,
+) {
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+    data class Properties(
+        val nickname: String,
+        val profileImage: String,
+        val thumbnailImage: String,
+    )
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+    data class KakaoAccount(
+        val profileNicknameNeedsAgreement: Boolean,
+        val profileImageNeedsAgreement: Boolean,
+        val profile: Profile,
+        val hasEmail: Boolean,
+        val emailNeedsAgreement: Boolean,
+        val isEmailValid: Boolean,
+        val isEmailVerified: Boolean,
+        val email: String,
+    )
+
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+    data class Profile(
+        val nickname: String,
+        val thumbnailImageUrl: String,
+        val profileImageUrl: String,
+        val isDefaultImage: Boolean,
+        val isDefaultNickname: Boolean,
+    )
+}
+
 @Service
 class AuthService(
     objectMapper: ObjectMapper,
     @Value("\${llmchat.auth.jwt-secret}") private val jwtSecret: String,
+    @Value("\${llmchat.auth.kakao.client-id}") private val kakaoClientId: String,
     private val userRepository: UserRepository,
     private val socialAccountRepository: SocialAccountRepository,
     private val passwordEncoder: PasswordEncoder,
@@ -154,6 +221,56 @@ class AuthService(
                     token = dto.accessToken,
                     tokenSecret = "",
                     tokenExpires = Instant.now().plusSeconds(3599),
+                )
+
+            userRepository.save(newUser)
+            socialAccountRepository.save(newSocialAccount)
+
+            return generateJwtToken(newSocialAccount.user)
+        }
+    }
+
+    @Transactional
+    fun loginByKakao(dto: AuthDto.LoginByKakaoRequest): String {
+        val accessToken = apiClient.getKakaoAccessToken(clientId = kakaoClientId, code = dto.code).execute()
+        if (!accessToken.isSuccessful) {
+            throw IllegalArgumentException("The given code is either invalid or expired")
+        }
+        val accessTokenBody = accessToken.body()!!
+
+        val userInfo = apiClient.getKakaoUserInfo(accessTokenBody.accessToken).execute()
+        if (!userInfo.isSuccessful) {
+            throw IllegalArgumentException("The given access token is either invalid or expired")
+        }
+        val responseBody = userInfo.body()!!
+
+        val socialAccount = socialAccountRepository.findByUidAndProvider(responseBody.id.toString(), ProviderEnum.KAKAO)
+        if (socialAccount != null) {
+            socialAccount.lastLogin = Instant.now()
+            socialAccount.user.lastLogin = Instant.now()
+            socialAccount.token = accessTokenBody.accessToken
+            socialAccount.tokenExpires = Instant.now().plusSeconds(accessTokenBody.expiresIn)
+
+            return generateJwtToken(socialAccount.user)
+        } else {
+            val newUser =
+                UserEntity(
+                    username = "kakao_${responseBody.id}",
+                    password = null,
+                    email = responseBody.kakaoAccount.email,
+                    mobileNumber = null,
+                    name = responseBody.properties.nickname,
+                    lastLogin = Instant.now(),
+                )
+            val newSocialAccount =
+                SocialAccountEntity(
+                    user = newUser,
+                    provider = ProviderEnum.KAKAO,
+                    uid = responseBody.id.toString(),
+                    lastLogin = Instant.now(),
+                    token = accessTokenBody.accessToken,
+                    tokenSecret = "",
+                    tokenExpires = Instant.now().plusSeconds(accessTokenBody.expiresIn),
                 )
 
             userRepository.save(newUser)
