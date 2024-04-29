@@ -52,6 +52,24 @@ interface AuthApi {
         @Query("access_token")
         accessToken: String,
     ): Call<KakaoUserInfo>
+
+    @GET("https://nid.naver.com/oauth2.0/token")
+    fun getNaverAccessToken(
+        @Query("grant_type")
+        grantType: String = "authorization_code",
+        @Query("client_id")
+        clientId: String,
+        @Query("client_secret")
+        clientSecret: String,
+        @Query("code")
+        code: String,
+    ): Call<NaverAccessToken>
+
+    @GET("https://openapi.naver.com/v1/nid/me")
+    fun getNaverUserInfo(
+        @Query("access_token")
+        accessToken: String,
+    ): Call<NaverUserInfo>
 }
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
@@ -116,11 +134,42 @@ data class KakaoUserInfo(
     )
 }
 
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class NaverAccessToken(
+    val accessToken: String,
+    val refreshToken: String,
+    // "bearer"
+    val tokenType: String,
+    // "3600"
+    val expiresIn: String,
+)
+
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+data class NaverUserInfo(
+    // "00"
+    val resultcode: String,
+    // "success"
+    val message: String,
+    val response: Response,
+) {
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
+    data class Response(
+        val id: String,
+        val profileImage: String,
+        val email: String,
+        val mobile: String,
+        val mobileE164: String,
+        val name: String,
+    )
+}
+
 @Service
 class AuthService(
     objectMapper: ObjectMapper,
     @Value("\${llmchat.auth.jwt-secret}") private val jwtSecret: String,
     @Value("\${llmchat.auth.kakao.client-id}") private val kakaoClientId: String,
+    @Value("\${llmchat.auth.naver.client-id}") private val naverClientId: String,
+    @Value("\${llmchat.auth.naver.client-secret}") private val naverClientSecret: String,
     private val userRepository: UserRepository,
     private val socialAccountRepository: SocialAccountRepository,
     private val passwordEncoder: PasswordEncoder,
@@ -271,6 +320,69 @@ class AuthService(
                     token = accessTokenBody.accessToken,
                     tokenSecret = "",
                     tokenExpires = Instant.now().plusSeconds(accessTokenBody.expiresIn),
+                )
+
+            userRepository.save(newUser)
+            socialAccountRepository.save(newSocialAccount)
+
+            return generateJwtToken(newSocialAccount.user)
+        }
+    }
+
+    @Transactional
+    fun loginByNaver(dto: AuthDto.LoginByNaverRequest): String {
+        val accessToken =
+            try {
+                val accessToken =
+                    apiClient.getNaverAccessToken(
+                        clientId = naverClientId,
+                        clientSecret = naverClientSecret,
+                        code = dto.code,
+                    ).execute()
+                if (!accessToken.isSuccessful) {
+                    throw IllegalArgumentException("The given code is either invalid or expired")
+                }
+
+                accessToken
+            } catch (e: Exception) {
+                // Naver API returns 200 even if the code is invalid
+                throw IllegalArgumentException("The given code is either invalid or expired")
+            }
+        val accessTokenBody = accessToken.body()!!
+
+        val userInfo = apiClient.getNaverUserInfo(accessTokenBody.accessToken).execute()
+        if (!userInfo.isSuccessful) {
+            throw IllegalArgumentException("The given access token is either invalid or expired")
+        }
+        val responseBody = userInfo.body()!!
+
+        val socialAccount = socialAccountRepository.findByUidAndProvider(responseBody.response.id, ProviderEnum.NAVER)
+        if (socialAccount != null) {
+            socialAccount.lastLogin = Instant.now()
+            socialAccount.user.lastLogin = Instant.now()
+            socialAccount.token = accessTokenBody.accessToken
+            socialAccount.tokenExpires = Instant.now().plusSeconds(accessTokenBody.expiresIn.toLong())
+
+            return generateJwtToken(socialAccount.user)
+        } else {
+            val newUser =
+                UserEntity(
+                    username = "naver_${responseBody.response.id}",
+                    password = null,
+                    email = responseBody.response.email,
+                    mobileNumber = responseBody.response.mobile,
+                    name = responseBody.response.name,
+                    lastLogin = Instant.now(),
+                )
+            val newSocialAccount =
+                SocialAccountEntity(
+                    user = newUser,
+                    provider = ProviderEnum.NAVER,
+                    uid = responseBody.response.id,
+                    lastLogin = Instant.now(),
+                    token = accessTokenBody.accessToken,
+                    tokenSecret = "",
+                    tokenExpires = Instant.now().plusSeconds(accessTokenBody.expiresIn.toLong()),
                 )
 
             userRepository.save(newUser)

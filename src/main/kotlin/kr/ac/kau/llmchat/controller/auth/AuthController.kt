@@ -51,6 +51,14 @@ class AuthController(
         return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
     }
 
+    @PostMapping("/login-by-naver")
+    fun loginByNaver(
+        @RequestBody dto: AuthDto.LoginByNaverRequest,
+    ): ResponseEntity<AuthDto.LoginResponse> {
+        val token = authService.loginByNaver(dto = dto)
+        return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
+    }
+
     @GetMapping("/ping")
     @SecurityRequirement(name = "Authorization")
     fun ping(): ResponseEntity<String> {

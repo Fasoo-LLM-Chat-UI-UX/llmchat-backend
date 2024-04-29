@@ -9,3 +9,6 @@ llmchat:
     jwt-secret: secretsecretsecretsecretsecretsecretsecretsecretsecretsecretsecr
     kakao:
       client-id: dummy-client-id
+    naver:
+      client-id: dummy-client-id
+      client-secret: dummy-client-secret

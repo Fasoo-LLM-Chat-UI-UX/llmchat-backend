@@ -22,6 +22,10 @@ sealed class AuthDto {
         val code: String,
     )
 
+    data class LoginByNaverRequest(
+        val code: String,
+    )
+
     data class LoginResponse(
         val token: String,
     )
