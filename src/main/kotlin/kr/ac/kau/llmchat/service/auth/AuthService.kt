@@ -420,4 +420,9 @@ class AuthService(
         val user = userRepository.findByUsername(username) ?: return null
         return UsernamePasswordAuthenticationToken(user, token, emptyList())
     }
+
+    fun checkUsername(dto: AuthDto.CheckUsernameRequest): Boolean {
+        val username = dto.username.lowercase()
+        return userRepository.findByUsername(username) == null
+    }
 }

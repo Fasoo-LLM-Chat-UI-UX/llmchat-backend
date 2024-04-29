@@ -29,4 +29,12 @@ sealed class AuthDto {
     data class LoginResponse(
         val token: String,
     )
+
+    data class CheckUsernameRequest(
+        val username: String,
+    )
+
+    data class CheckUsernameResponse(
+        val isAvailable: Boolean,
+    )
 }

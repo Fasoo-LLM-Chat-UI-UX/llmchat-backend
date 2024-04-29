@@ -65,4 +65,12 @@ class AuthController(
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         return ResponseEntity.ok("Pong, ${user.username}!")
     }
+
+    @PostMapping("/check-username")
+    fun checkUsername(
+        @RequestBody dto: AuthDto.CheckUsernameRequest,
+    ): ResponseEntity<AuthDto.CheckUsernameResponse> {
+        val isAvailable = authService.checkUsername(dto = dto)
+        return ResponseEntity.ok(AuthDto.CheckUsernameResponse(isAvailable = isAvailable))
+    }
 }
