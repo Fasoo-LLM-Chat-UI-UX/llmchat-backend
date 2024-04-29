@@ -1,13 +1,9 @@
 package kr.ac.kau.llmchat.controller.auth
 
 import io.swagger.v3.oas.annotations.responses.ApiResponse
-import io.swagger.v3.oas.annotations.security.SecurityRequirement
-import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.service.auth.AuthService
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
-import org.springframework.security.core.context.SecurityContextHolder
-import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
@@ -57,13 +53,6 @@ class AuthController(
     ): ResponseEntity<AuthDto.LoginResponse> {
         val token = authService.loginByNaver(dto = dto)
         return ResponseEntity.ok(AuthDto.LoginResponse(token = token))
-    }
-
-    @GetMapping("/ping")
-    @SecurityRequirement(name = "Authorization")
-    fun ping(): ResponseEntity<String> {
-        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
-        return ResponseEntity.ok("Pong, ${user.username}!")
     }
 
     @PostMapping("/check-username")
