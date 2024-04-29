@@ -1,20 +1,37 @@
 package kr.ac.kau.llmchat.service.user
 
-import kr.ac.kau.llmchat.controller.user.UserPreferenceDto
+import kr.ac.kau.llmchat.controller.user.UserDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
+import kr.ac.kau.llmchat.domain.auth.UserRepository
 import kr.ac.kau.llmchat.domain.user.ModelVersionEnum
 import kr.ac.kau.llmchat.domain.user.SpeechVoiceEnum
 import kr.ac.kau.llmchat.domain.user.UILanguageCodeEnum
 import kr.ac.kau.llmchat.domain.user.UIThemeEnum
 import kr.ac.kau.llmchat.domain.user.UserPreferenceEntity
 import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
+import org.springframework.security.crypto.password.PasswordEncoder
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 
 @Service
-class UserPreferenceService(
+class UserService(
+    private val userRepository: UserRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
+    private val passwordEncoder: PasswordEncoder,
 ) {
+    @Transactional
+    fun updateProfile(
+        user: UserEntity,
+        dto: UserDto.UpdateProfileRequest,
+    ) {
+        dto.password?.let { user.password = passwordEncoder.encode(it) }
+        dto.name?.let { user.name = it }
+        dto.mobileNumber?.let { user.mobileNumber = it }
+        dto.email?.let { user.email = it }
+
+        userRepository.save(user)
+    }
+
     @Transactional
     fun getPreference(user: UserEntity): UserPreferenceEntity {
         val userPreference = userPreferenceRepository.findByUser(user = user)
@@ -40,7 +57,7 @@ class UserPreferenceService(
     @Transactional
     fun updatePreference(
         user: UserEntity,
-        dto: UserPreferenceDto.UpdatePreferenceRequest,
+        dto: UserDto.UpdatePreferenceRequest,
     ) {
         val userPreference = userPreferenceRepository.findByUser(user = user)
         if (userPreference != null) {
