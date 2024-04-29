@@ -9,11 +9,13 @@ import kr.ac.kau.llmchat.domain.preference.UIThemeEnum
 import kr.ac.kau.llmchat.domain.preference.UserPreferenceEntity
 import kr.ac.kau.llmchat.domain.preference.UserPreferenceRepository
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 
 @Service
 class UserPreferenceService(
     private val userPreferenceRepository: UserPreferenceRepository,
 ) {
+    @Transactional
     fun getPreference(user: UserEntity): UserPreferenceEntity {
         val userPreference = userPreferenceRepository.findByUser(user = user)
         if (userPreference != null) {
@@ -35,6 +37,7 @@ class UserPreferenceService(
         return newUserPreference
     }
 
+    @Transactional
     fun updatePreference(
         user: UserEntity,
         dto: UserPreferenceDto.UpdatePreferenceRequest,
@@ -48,7 +51,6 @@ class UserPreferenceService(
             userPreference.aboutUserMessage = dto.aboutUserMessage
             userPreference.aboutMessageEnabled = dto.aboutMessageEnabled
             userPreference.modelVersion = dto.modelVersion
-            userPreferenceRepository.save(userPreference)
 
             return
         }
