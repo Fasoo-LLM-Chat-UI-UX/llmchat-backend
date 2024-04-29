@@ -371,7 +371,7 @@ class AuthService(
                     username = "naver_${responseBody.response.id}",
                     password = null,
                     email = responseBody.response.email,
-                    mobileNumber = responseBody.response.mobile,
+                    mobileNumber = responseBody.response.mobile.replace("-", ""),
                     name = responseBody.response.name,
                     profileImage = responseBody.response.profileImage,
                     lastLogin = Instant.now(),
