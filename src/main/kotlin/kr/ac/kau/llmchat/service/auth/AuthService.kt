@@ -211,6 +211,7 @@ class AuthService(
                 email = dto.email,
                 mobileNumber = dto.mobileNumber,
                 name = dto.name,
+                profileImage = null,
                 lastLogin = null,
             )
 
@@ -260,6 +261,7 @@ class AuthService(
                     mobileNumber = null,
                     name = response.body()!!.name,
                     lastLogin = Instant.now(),
+                    profileImage = responseBody.picture,
                 )
             val newSocialAccount =
                 SocialAccountEntity(
@@ -268,7 +270,6 @@ class AuthService(
                     uid = responseBody.sub,
                     lastLogin = Instant.now(),
                     token = dto.accessToken,
-                    tokenSecret = "",
                     tokenExpires = Instant.now().plusSeconds(3599),
                 )
 
@@ -309,6 +310,7 @@ class AuthService(
                     email = responseBody.kakaoAccount.email,
                     mobileNumber = null,
                     name = responseBody.properties.nickname,
+                    profileImage = responseBody.properties.profileImage,
                     lastLogin = Instant.now(),
                 )
             val newSocialAccount =
@@ -318,7 +320,6 @@ class AuthService(
                     uid = responseBody.id.toString(),
                     lastLogin = Instant.now(),
                     token = accessTokenBody.accessToken,
-                    tokenSecret = "",
                     tokenExpires = Instant.now().plusSeconds(accessTokenBody.expiresIn),
                 )
 
@@ -372,6 +373,7 @@ class AuthService(
                     email = responseBody.response.email,
                     mobileNumber = responseBody.response.mobile,
                     name = responseBody.response.name,
+                    profileImage = responseBody.response.profileImage,
                     lastLogin = Instant.now(),
                 )
             val newSocialAccount =
@@ -381,7 +383,6 @@ class AuthService(
                     uid = responseBody.response.id,
                     lastLogin = Instant.now(),
                     token = accessTokenBody.accessToken,
-                    tokenSecret = "",
                     tokenExpires = Instant.now().plusSeconds(accessTokenBody.expiresIn.toLong()),
                 )
 

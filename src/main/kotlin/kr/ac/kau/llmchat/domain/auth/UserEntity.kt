@@ -23,6 +23,8 @@ class UserEntity(
     var mobileNumber: String?,
     @Column(nullable = false, length = 255)
     var name: String,
+    @Column(nullable = true, length = 255)
+    var profileImage: String?,
     @Column(nullable = false)
     @CreationTimestamp
     var dateJoined: Instant = Instant.EPOCH,

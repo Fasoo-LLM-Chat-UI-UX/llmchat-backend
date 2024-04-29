@@ -33,8 +33,6 @@ class SocialAccountEntity(
     var lastLogin: Instant?,
     @Column(nullable = false, length = 255)
     var token: String,
-    @Column(nullable = false, length = 255)
-    var tokenSecret: String,
     @Column(nullable = false)
     var tokenExpires: Instant,
 )
