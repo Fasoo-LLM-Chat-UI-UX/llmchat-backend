@@ -425,4 +425,17 @@ class AuthService(
         val username = dto.username.lowercase()
         return userRepository.findByUsername(username) == null
     }
+
+    @Transactional
+    fun updateProfile(
+        user: UserEntity,
+        dto: AuthDto.UpdateProfileRequest,
+    ) {
+        dto.password?.let { user.password = passwordEncoder.encode(it) }
+        dto.name?.let { user.name = it }
+        dto.mobileNumber?.let { user.mobileNumber = it }
+        dto.email?.let { user.email = it }
+
+        userRepository.save(user)
+    }
 }
