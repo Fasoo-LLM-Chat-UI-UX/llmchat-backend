@@ -11,7 +11,9 @@ import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
+import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
 
@@ -53,6 +55,28 @@ class ChatController(
             updatedAt = thread.updatedAt,
         )
     }
+
+    @PostMapping("/thread/{threadId}/send-message")
+    @SecurityRequirement(name = "Authorization")
+    fun sendMessage(
+        @PathVariable threadId: Long,
+        @RequestBody dto: ChatDto.SendMessageRequest,
+    ) {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.sendMessage(
+            threadId = threadId,
+            user = user,
+            dto = dto,
+        )
+    }
+
+    // TODO: 쓰레드 제목 자동 생성 API
+    // TODO: 쓰레드 제목 수정 API
+    // TODO: 쓰레드 삭제 API
+    // TODO: 쓰레드 메시지 조회 API
+    // TODO: 쓰레드 메시지 추가 API
+    // TODO: 쓰레드 메시지 생성 API
+    // TODO: 쓰레드 메시지 수정 API
 
     // @GetMapping("/ai/generate")
     // @SecurityRequirement(name = "Authorization")

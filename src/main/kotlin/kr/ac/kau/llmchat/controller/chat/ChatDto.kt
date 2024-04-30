@@ -16,4 +16,8 @@ sealed class ChatDto {
         val createdAt: Instant,
         val updatedAt: Instant,
     )
+
+    data class SendMessageRequest(
+        val content: String,
+    )
 }
