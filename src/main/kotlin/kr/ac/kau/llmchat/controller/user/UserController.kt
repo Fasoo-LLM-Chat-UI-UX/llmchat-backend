@@ -3,7 +3,6 @@ package kr.ac.kau.llmchat.controller.user
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.service.user.UserService
-import org.springframework.http.ResponseEntity
 import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PostMapping
@@ -33,10 +32,9 @@ class UserController(
     @SecurityRequirement(name = "Authorization")
     fun updateProfile(
         @RequestBody dto: UserDto.UpdateProfileRequest,
-    ): ResponseEntity<Unit> {
+    ) {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         userService.updateProfile(user = user, dto = dto)
-        return ResponseEntity.ok().build()
     }
 
     @GetMapping("/preference")
