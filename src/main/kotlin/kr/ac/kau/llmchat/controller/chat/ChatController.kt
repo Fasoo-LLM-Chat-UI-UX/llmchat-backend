@@ -16,11 +16,11 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 
 @RestController
 @RequestMapping("/api/v1/chat")
 class ChatController(
-    // private val chatClient: OpenAiChatClient,
     private val chatService: ChatService,
 ) {
     @GetMapping("/thread")
@@ -56,64 +56,47 @@ class ChatController(
         )
     }
 
+    @GetMapping("/thread/{threadId}/message")
+    @SecurityRequirement(name = "Authorization")
+    @PageableAsQueryParam
+    fun getMessages(
+        @PathVariable threadId: Long,
+        @Parameter(hidden = true)
+        @PageableDefault(size = 100, sort = ["id"], direction = Sort.Direction.DESC)
+        pageable: Pageable,
+    ): Page<ChatDto.GetMessageResponse> {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        return chatService.getMessages(threadId = threadId, user = user, pageable = pageable)
+            .map { message ->
+                ChatDto.GetMessageResponse(
+                    id = message.id,
+                    role = message.role,
+                    content = message.content,
+                    createdAt = message.createdAt,
+                    updatedAt = message.updatedAt,
+                )
+            }
+    }
+
     @PostMapping("/thread/{threadId}/send-message")
     @SecurityRequirement(name = "Authorization")
     fun sendMessage(
         @PathVariable threadId: Long,
         @RequestBody dto: ChatDto.SendMessageRequest,
-    ) {
+    ): SseEmitter {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
-        chatService.sendMessage(
-            threadId = threadId,
-            user = user,
-            dto = dto,
-        )
+        val sseEmitter =
+            chatService.sendMessage(
+                threadId = threadId,
+                user = user,
+                dto = dto,
+            )
+        return sseEmitter
     }
 
     // TODO: 쓰레드 제목 자동 생성 API
     // TODO: 쓰레드 제목 수정 API
     // TODO: 쓰레드 삭제 API
     // TODO: 쓰레드 메시지 조회 API
-    // TODO: 쓰레드 메시지 추가 API
-    // TODO: 쓰레드 메시지 생성 API
     // TODO: 쓰레드 메시지 수정 API
-
-    // @GetMapping("/ai/generate")
-    // @SecurityRequirement(name = "Authorization")
-    // fun generate(
-    //     @RequestParam(value = "message", defaultValue = "Tell me a joke") message: String?,
-    // ): Map<*, *> {
-    //     return mapOf("generation" to chatClient.call(message))
-    // }
-    //
-    // @GetMapping("/ai/generateStream", produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
-    // @SecurityRequirement(name = "Authorization")
-    // fun generateStream(
-    //     @RequestParam(
-    //         value = "message",
-    //         defaultValue = "Tell me a joke",
-    //     ) message: String?,
-    // ): SseEmitter {
-    //     val emitter = SseEmitter()
-    //     val prompt = Prompt(UserMessage(message))
-    //     val responseFlux = chatClient.stream(prompt)
-    //
-    //     responseFlux.subscribe(
-    //         { chatResponse ->
-    //             try {
-    //                 emitter.send(SseEmitter.event().data(chatResponse))
-    //             } catch (e: IOException) {
-    //                 emitter.completeWithError(e)
-    //             }
-    //         },
-    //         { error ->
-    //             emitter.completeWithError(error)
-    //         },
-    //         {
-    //             emitter.complete()
-    //         },
-    //     )
-    //
-    //     return emitter
-    // }
 }

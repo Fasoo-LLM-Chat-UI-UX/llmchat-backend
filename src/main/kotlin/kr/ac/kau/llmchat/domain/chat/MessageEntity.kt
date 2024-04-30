@@ -11,6 +11,9 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.Lob
 import jakarta.persistence.ManyToOne
+import org.hibernate.annotations.CreationTimestamp
+import org.hibernate.annotations.UpdateTimestamp
+import java.time.Instant
 
 @Entity(name = "messages")
 class MessageEntity(
@@ -26,4 +29,10 @@ class MessageEntity(
     @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,
+    @Column(nullable = false)
+    @CreationTimestamp
+    var createdAt: Instant = Instant.EPOCH,
+    @Column(nullable = false)
+    @UpdateTimestamp
+    var updatedAt: Instant = Instant.EPOCH,
 )

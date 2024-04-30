@@ -7,13 +7,21 @@ import kr.ac.kau.llmchat.domain.chat.MessageRepository
 import kr.ac.kau.llmchat.domain.chat.RoleEnum
 import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
+import org.springframework.ai.chat.messages.AssistantMessage
+import org.springframework.ai.chat.messages.Message
+import org.springframework.ai.chat.messages.UserMessage
+import org.springframework.ai.chat.prompt.Prompt
+import org.springframework.ai.openai.OpenAiChatClient
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import java.io.IOException
 
 @Service
 class ChatService(
+    private val chatClient: OpenAiChatClient,
     private val threadRepository: ThreadRepository,
     private val messageRepository: MessageRepository,
 ) {
@@ -33,11 +41,23 @@ class ChatService(
         )
     }
 
+    fun getMessages(
+        threadId: Long,
+        user: UserEntity,
+        pageable: Pageable,
+    ): Page<MessageEntity> {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        return messageRepository.findAllByThread(thread = thread, pageable = pageable)
+    }
+
     fun sendMessage(
         threadId: Long,
         user: UserEntity,
         dto: ChatDto.SendMessageRequest,
-    ) {
+    ): SseEmitter {
         val thread = threadRepository.findByIdOrNull(threadId)
         if (thread == null || thread.user.id != user.id) {
             throw IllegalArgumentException("Thread not found")
@@ -49,5 +69,50 @@ class ChatService(
                 content = dto.content,
             ),
         )
+
+        val emitter = SseEmitter()
+        val messages: List<Message> =
+            messageRepository
+                .findAllByThread(thread = thread, pageable = Pageable.unpaged())
+                .map {
+                    if (it.role == RoleEnum.USER) {
+                        UserMessage(it.content)
+                    } else {
+                        AssistantMessage(it.content)
+                    }
+                }
+                .toList()
+        val prompt = Prompt(messages)
+        val responseFlux = chatClient.stream(prompt)
+
+        val chatMessage = StringBuilder()
+
+        responseFlux.subscribe(
+            { chatResponse ->
+                try {
+                    chatResponse.result.output.content?.let {
+                        chatMessage.append(it)
+                    }
+                    emitter.send(SseEmitter.event().data(chatResponse))
+                } catch (e: IOException) {
+                    emitter.completeWithError(e)
+                }
+            },
+            { error ->
+                emitter.completeWithError(error)
+            },
+            {
+                emitter.complete()
+                messageRepository.save(
+                    MessageEntity(
+                        thread = thread,
+                        role = RoleEnum.ASSISTANT,
+                        content = chatMessage.toString(),
+                    ),
+                )
+            },
+        )
+
+        return emitter
     }
 }

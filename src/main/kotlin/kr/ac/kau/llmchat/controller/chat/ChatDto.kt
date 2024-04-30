@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.controller.chat
 
+import kr.ac.kau.llmchat.domain.chat.RoleEnum
 import java.time.Instant
 
 sealed class ChatDto {
@@ -19,5 +20,13 @@ sealed class ChatDto {
 
     data class SendMessageRequest(
         val content: String,
+    )
+
+    data class GetMessageResponse(
+        val id: Long,
+        val role: RoleEnum,
+        val content: String,
+        val createdAt: Instant,
+        val updatedAt: Instant,
     )
 }
