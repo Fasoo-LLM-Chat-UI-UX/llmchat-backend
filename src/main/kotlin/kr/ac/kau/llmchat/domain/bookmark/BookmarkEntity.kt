@@ -42,6 +42,4 @@ class BookmarkEntity(
     @Column(nullable = false)
     @UpdateTimestamp
     var updatedAt: Instant = Instant.EPOCH,
-    @Column(nullable = true)
-    var deletedAt: Instant? = null,
 )
