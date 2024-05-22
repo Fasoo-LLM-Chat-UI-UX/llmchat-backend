@@ -6,7 +6,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.jpa.repository.JpaRepository
 
 interface ThreadRepository : JpaRepository<ThreadEntity, Long> {
-    fun findAllByUser(
+    fun findAllByUserAndDeletedAtIsNull(
         user: UserEntity,
         pageable: Pageable,
     ): Page<ThreadEntity>

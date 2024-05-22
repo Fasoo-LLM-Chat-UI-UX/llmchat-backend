@@ -29,7 +29,7 @@ class ChatService(
         user: UserEntity,
         pageable: Pageable,
     ): Page<ThreadEntity> {
-        return threadRepository.findAllByUser(user = user, pageable = pageable)
+        return threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = pageable)
     }
 
     fun createThread(user: UserEntity): ThreadEntity {
@@ -61,6 +61,9 @@ class ChatService(
         val thread = threadRepository.findByIdOrNull(threadId)
         if (thread == null || thread.user.id != user.id) {
             throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt != null) {
+            throw IllegalArgumentException("Thread is deleted")
         }
         messageRepository.save(
             MessageEntity(
