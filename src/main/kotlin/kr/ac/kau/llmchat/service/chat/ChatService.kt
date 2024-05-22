@@ -9,6 +9,7 @@ import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
 import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
+import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.openai.OpenAiChatClient
@@ -39,6 +40,63 @@ class ChatService(
                 chatName = "New chat",
             ),
         )
+    }
+
+    fun autoRenameThread(
+        threadId: Long,
+        user: UserEntity,
+    ): SseEmitter {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt != null) {
+            throw IllegalArgumentException("Thread is deleted")
+        }
+
+        val emitter = SseEmitter()
+
+        val systemMessage = "다음의 대화를 10자 내외로 요약해."
+
+        val messages: List<Message> =
+            listOf(SystemMessage(systemMessage)) +
+                messageRepository
+                    .findAllByThread(thread = thread, pageable = Pageable.unpaged())
+                    .map {
+                        if (it.role == RoleEnum.USER) {
+                            UserMessage(it.content)
+                        } else {
+                            AssistantMessage(it.content)
+                        }
+                    }
+                    .toList()
+        val prompt = Prompt(messages)
+        val responseFlux = chatClient.stream(prompt)
+
+        val chatMessage = StringBuilder()
+
+        responseFlux.subscribe(
+            { chatResponse ->
+                try {
+                    chatResponse.result.output.content?.let {
+                        chatMessage.append(it)
+                    }
+                    emitter.send(SseEmitter.event().data(chatResponse))
+                } catch (e: IOException) {
+                    emitter.completeWithError(e)
+                }
+            },
+            { error ->
+                emitter.completeWithError(error)
+            },
+            {
+                emitter.complete()
+                thread.chatName = chatMessage.toString()
+                threadRepository.save(thread)
+            },
+        )
+
+        return emitter
     }
 
     fun getMessages(

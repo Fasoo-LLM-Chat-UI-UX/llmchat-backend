@@ -13,6 +13,7 @@ import org.springframework.security.core.context.SecurityContextHolder
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RestController
@@ -54,6 +55,16 @@ class ChatController(
             createdAt = thread.createdAt,
             updatedAt = thread.updatedAt,
         )
+    }
+
+    @PutMapping("/thread/{threadId}/auto-rename")
+    @SecurityRequirement(name = "Authorization")
+    fun autoRenameThread(
+        @PathVariable threadId: Long,
+    ): SseEmitter {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        val sseEmitter = chatService.autoRenameThread(threadId = threadId, user = user)
+        return sseEmitter
     }
 
     @GetMapping("/thread/{threadId}/message")
