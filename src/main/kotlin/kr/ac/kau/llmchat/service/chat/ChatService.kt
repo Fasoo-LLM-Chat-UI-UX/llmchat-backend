@@ -19,6 +19,7 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.io.IOException
+import java.time.Instant
 
 @Service
 class ChatService(
@@ -31,6 +32,13 @@ class ChatService(
         pageable: Pageable,
     ): Page<ThreadEntity> {
         return threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = pageable)
+    }
+
+    fun getDeletedThreads(
+        user: UserEntity,
+        pageable: Pageable,
+    ): Page<ThreadEntity> {
+        return threadRepository.findAllByUserAndDeletedAtIsNotNull(user = user, pageable = pageable)
     }
 
     fun createThread(user: UserEntity): ThreadEntity {
@@ -192,5 +200,37 @@ class ChatService(
         )
 
         return emitter
+    }
+
+    fun softDeleteThread(
+        threadId: Long,
+        user: UserEntity,
+    ) {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt != null) {
+            throw IllegalArgumentException("Thread is already deleted")
+        }
+
+        thread.deletedAt = Instant.now()
+        threadRepository.save(thread)
+    }
+
+    fun hardDeleteThread(
+        threadId: Long,
+        user: UserEntity,
+    ) {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt == null) {
+            throw IllegalArgumentException("Thread is not soft-deleted yet. Soft-delete first.")
+        }
+
+        messageRepository.deleteAllByThread(thread)
+        threadRepository.delete(thread)
     }
 }

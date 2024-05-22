@@ -10,6 +10,7 @@ import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
 import org.springframework.data.web.PageableDefault
 import org.springframework.security.core.context.SecurityContextHolder
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
@@ -67,6 +68,44 @@ class ChatController(
         return sseEmitter
     }
 
+    @GetMapping("/thread/deleted")
+    @SecurityRequirement(name = "Authorization")
+    @PageableAsQueryParam
+    fun getDeletedThreads(
+        @Parameter(hidden = true)
+        @PageableDefault(size = 100, sort = ["id"], direction = Sort.Direction.DESC)
+        pageable: Pageable,
+    ): Page<ChatDto.GetThreadResponse> {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        return chatService.getDeletedThreads(user = user, pageable = pageable)
+            .map { thread ->
+                ChatDto.GetThreadResponse(
+                    id = thread.id,
+                    chatName = thread.chatName,
+                    createdAt = thread.createdAt,
+                    updatedAt = thread.updatedAt,
+                )
+            }
+    }
+
+    @DeleteMapping("/thread/{threadId}/soft-delete")
+    @SecurityRequirement(name = "Authorization")
+    fun softDeleteThread(
+        @PathVariable threadId: Long,
+    ) {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.softDeleteThread(threadId = threadId, user = user)
+    }
+
+    @DeleteMapping("/thread/{threadId}/hard-delete")
+    @SecurityRequirement(name = "Authorization")
+    fun hardDeleteThread(
+        @PathVariable threadId: Long,
+    ) {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.hardDeleteThread(threadId = threadId, user = user)
+    }
+
     @PutMapping("/thread/{threadId}/manual-rename")
     @SecurityRequirement(name = "Authorization")
     fun manualRenameThread(
@@ -115,9 +154,5 @@ class ChatController(
         return sseEmitter
     }
 
-    // TODO: 쓰레드 제목 자동 생성 API
-    // TODO: 쓰레드 제목 수정 API
-    // TODO: 쓰레드 삭제 API
-    // TODO: 쓰레드 메시지 조회 API
     // TODO: 쓰레드 메시지 수정 API
 }

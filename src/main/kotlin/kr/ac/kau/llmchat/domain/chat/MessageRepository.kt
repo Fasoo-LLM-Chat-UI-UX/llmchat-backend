@@ -11,4 +11,6 @@ interface MessageRepository : JpaRepository<MessageEntity, Long> {
         thread: ThreadEntity,
         pageable: Pageable,
     ): Page<MessageEntity>
+
+    fun deleteAllByThread(thread: ThreadEntity)
 }
