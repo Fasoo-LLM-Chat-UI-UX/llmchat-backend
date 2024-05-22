@@ -234,6 +234,22 @@ class ChatService(
         threadRepository.save(thread)
     }
 
+    fun restoreThread(
+        threadId: Long,
+        user: UserEntity,
+    ) {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt == null) {
+            throw IllegalArgumentException("Thread is not deleted yet")
+        }
+
+        thread.deletedAt = null
+        threadRepository.save(thread)
+    }
+
     fun hardDeleteThread(
         threadId: Long,
         user: UserEntity,

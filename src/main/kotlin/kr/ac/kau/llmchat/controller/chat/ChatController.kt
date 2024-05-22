@@ -97,6 +97,15 @@ class ChatController(
         chatService.softDeleteThread(threadId = threadId, user = user)
     }
 
+    @PostMapping("/thread/{threadId}/restore")
+    @SecurityRequirement(name = "Authorization")
+    fun restoreThread(
+        @PathVariable threadId: Long,
+    ) {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.restoreThread(threadId = threadId, user = user)
+    }
+
     @DeleteMapping("/thread/{threadId}/hard-delete")
     @SecurityRequirement(name = "Authorization")
     fun hardDeleteThread(
