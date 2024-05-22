@@ -36,6 +36,7 @@ sealed class ChatDto {
 
     data class SseMessageResponse(
         val messageId: Long,
+        val role: RoleEnum,
         val content: String,
     )
 }

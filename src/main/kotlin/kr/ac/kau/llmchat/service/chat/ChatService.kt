@@ -88,7 +88,11 @@ class ChatService(
                 try {
                     chatResponse.result.output.content?.let {
                         chatMessage.append(it)
-                        emitter.send(SseEmitter.event().data(ChatDto.SseMessageResponse(messageId = -1, content = it)))
+                        emitter.send(
+                            SseEmitter.event().data(
+                                ChatDto.SseMessageResponse(messageId = -1, role = RoleEnum.ASSISTANT, content = it),
+                            ),
+                        )
                     }
                 } catch (e: IOException) {
                     emitter.completeWithError(e)
@@ -148,15 +152,20 @@ class ChatService(
         if (thread.deletedAt != null) {
             throw IllegalArgumentException("Thread is deleted")
         }
-        messageRepository.save(
+        val userMessage =
             MessageEntity(
                 thread = thread,
                 role = RoleEnum.USER,
                 content = dto.content,
-            ),
-        )
+            )
+        messageRepository.save(userMessage)
 
         val emitter = SseEmitter()
+        emitter.send(
+            SseEmitter.event().data(
+                ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = dto.content),
+            ),
+        )
         val messages: List<Message> =
             messageRepository
                 .findAllByThread(thread = thread, pageable = Pageable.unpaged())
@@ -187,7 +196,7 @@ class ChatService(
                         chatMessage.append(it)
                         emitter.send(
                             SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, content = it),
+                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = it),
                             ),
                         )
                     }
@@ -254,8 +263,8 @@ class ChatService(
             throw IllegalArgumentException("Thread is deleted")
         }
 
-        val message = messageRepository.findByIdOrNull(messageId)
-        if (message == null || message.thread.id != threadId || message.role != RoleEnum.USER) {
+        val userMessage = messageRepository.findByIdOrNull(messageId)
+        if (userMessage == null || userMessage.thread.id != threadId || userMessage.role != RoleEnum.USER) {
             throw IllegalArgumentException("Message not found or not editable")
         }
 
@@ -263,11 +272,16 @@ class ChatService(
         messageRepository.deleteAllByThreadAndIdGreaterThan(thread, messageId)
 
         // 메시지 내용 업데이트 및 저장
-        message.content = dto.content
-        messageRepository.save(message)
+        userMessage.content = dto.content
+        messageRepository.save(userMessage)
 
         // 남아있는 메시지들로 대화 재생성
         val emitter = SseEmitter()
+        emitter.send(
+            SseEmitter.event().data(
+                ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = dto.content),
+            ),
+        )
         val messages: List<Message> =
             messageRepository
                 .findAllByThread(thread = thread, pageable = Pageable.unpaged())
@@ -298,7 +312,7 @@ class ChatService(
                         chatMessage.append(it)
                         emitter.send(
                             SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, content = it),
+                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = it),
                             ),
                         )
                     }
