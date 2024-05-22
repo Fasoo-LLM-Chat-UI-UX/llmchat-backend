@@ -28,6 +28,7 @@ interface MessageRepository : JpaRepository<MessageEntity, Long> {
         AND m.role = kr.ac.kau.llmchat.domain.chat.RoleEnum.USER
         AND m.id < :messageId
         ORDER BY m.id DESC
+        LIMIT 1
     """,
     )
     fun findUserMessage(
