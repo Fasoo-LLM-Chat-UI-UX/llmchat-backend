@@ -40,6 +40,11 @@ class BookmarkService(
             throw IllegalArgumentException("Only assistant message can be bookmarked")
         }
 
+        val alreadyExists = bookmarkRepository.existsByMessage(assistantMessage)
+        if (alreadyExists) {
+            throw IllegalArgumentException("Bookmark already exists")
+        }
+
         val userMessage =
             messageRepository.findUserMessage(
                 thread = assistantMessage.thread,
