@@ -8,6 +8,7 @@ import kr.ac.kau.llmchat.domain.chat.MessageRepository
 import kr.ac.kau.llmchat.domain.chat.RoleEnum
 import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
+import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
 import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
@@ -27,6 +28,7 @@ class ChatService(
     private val chatClient: OpenAiChatClient,
     private val threadRepository: ThreadRepository,
     private val messageRepository: MessageRepository,
+    private val userPreferenceRepository: UserPreferenceRepository,
 ) {
     fun getThreads(
         user: UserEntity,
@@ -161,13 +163,25 @@ class ChatService(
             )
         messageRepository.save(userMessage)
 
+        var systemMessage: String? = null
+
+        val preference = userPreferenceRepository.findByUser(user)
+        if (preference != null) {
+            if (preference.aboutMessageEnabled && preference.aboutUserMessage?.isNotBlank() == true) {
+                systemMessage = "Message about user: ${preference.aboutUserMessage}\n\n"
+            }
+            if (preference.aboutMessageEnabled && preference.aboutModelMessage?.isNotBlank() == true) {
+                systemMessage = "Message to model: ${preference.aboutModelMessage}"
+            }
+        }
+
         val emitter = SseEmitter()
         emitter.send(
             SseEmitter.event().data(
                 ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = dto.content),
             ),
         )
-        val messages: List<Message> =
+        val messages: MutableList<Message> =
             messageRepository
                 .findAllByThread(thread = thread, pageable = Pageable.unpaged())
                 .map {
@@ -177,7 +191,10 @@ class ChatService(
                         AssistantMessage(it.content)
                     }
                 }
-                .toList()
+                .toMutableList()
+        if (systemMessage != null) {
+            messages.add(0, SystemMessage(systemMessage))
+        }
         val prompt = Prompt(messages)
         val responseFlux = chatClient.stream(prompt)
 
@@ -293,6 +310,18 @@ class ChatService(
         userMessage.content = dto.content
         messageRepository.save(userMessage)
 
+        var systemMessage: String? = null
+
+        val preference = userPreferenceRepository.findByUser(user)
+        if (preference != null) {
+            if (preference.aboutMessageEnabled && preference.aboutUserMessage?.isNotBlank() == true) {
+                systemMessage = "Message about user: ${preference.aboutUserMessage}\n\n"
+            }
+            if (preference.aboutMessageEnabled && preference.aboutModelMessage?.isNotBlank() == true) {
+                systemMessage = "Message to model: ${preference.aboutModelMessage}"
+            }
+        }
+
         // 남아있는 메시지들로 대화 재생성
         val emitter = SseEmitter()
         emitter.send(
@@ -300,7 +329,7 @@ class ChatService(
                 ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = dto.content),
             ),
         )
-        val messages: List<Message> =
+        val messages: MutableList<Message> =
             messageRepository
                 .findAllByThread(thread = thread, pageable = Pageable.unpaged())
                 .map {
@@ -310,7 +339,10 @@ class ChatService(
                         AssistantMessage(it.content)
                     }
                 }
-                .toList()
+                .toMutableList()
+        if (systemMessage != null) {
+            messages.add(0, SystemMessage(systemMessage))
+        }
         val prompt = Prompt(messages)
         val responseFlux = chatClient.stream(prompt)
 
