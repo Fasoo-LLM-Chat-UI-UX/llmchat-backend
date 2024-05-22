@@ -114,7 +114,7 @@ class ChatController(
         chatService.softDeleteThread(threadId = threadId, user = user)
     }
 
-    @DeleteMapping("/thread/{threadId}/soft-delete-all")
+    @DeleteMapping("/thread/soft-delete-all")
     @SecurityRequirement(name = "Authorization")
     @Operation(summary = "쓰레드 소프트 삭제", description = "모든 쓰레드를 소프트 삭제하는 API")
     fun softDeleteAllThread() {
