@@ -89,11 +89,12 @@ class ChatService(
         responseFlux.subscribe(
             { chatResponse ->
                 try {
-                    chatResponse.result.output.content?.let {
-                        chatMessage.append(it)
+                    val content: String? = chatResponse.result.output.content
+                    if (content?.isNotEmpty() == true) {
+                        chatMessage.append(content)
                         emitter.send(
                             SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(messageId = -1, role = RoleEnum.ASSISTANT, content = it),
+                                ChatDto.SseMessageResponse(messageId = -1, role = RoleEnum.ASSISTANT, content = content),
                             ),
                         )
                     }
@@ -210,11 +211,16 @@ class ChatService(
         responseFlux.subscribe(
             { chatResponse ->
                 try {
-                    chatResponse.result.output.content?.let {
-                        chatMessage.append(it)
+                    val content: String? = chatResponse.result.output.content
+                    if (content?.isNotEmpty() == true) {
+                        chatMessage.append(content)
                         emitter.send(
                             SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = it),
+                                ChatDto.SseMessageResponse(
+                                    messageId = assistantMessage.id,
+                                    role = assistantMessage.role,
+                                    content = content,
+                                ),
                             ),
                         )
                     }
@@ -358,11 +364,16 @@ class ChatService(
         responseFlux.subscribe(
             { chatResponse ->
                 try {
-                    chatResponse.result.output.content?.let {
-                        chatMessage.append(it)
+                    val content: String? = chatResponse.result.output.content
+                    if (content?.isNotEmpty() == true) {
+                        chatMessage.append(content)
                         emitter.send(
                             SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = it),
+                                ChatDto.SseMessageResponse(
+                                    messageId = assistantMessage.id,
+                                    role = assistantMessage.role,
+                                    content = content,
+                                ),
                             ),
                         )
                     }
