@@ -9,6 +9,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.Lob
 import jakarta.persistence.ManyToOne
+import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.chat.MessageEntity
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
@@ -20,12 +21,15 @@ class BookmarkEntity(
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     var id: Long = 0L,
     @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "user_id", nullable = false)
+    var user: UserEntity,
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "message_id", nullable = false)
     var message: MessageEntity,
     @Column(nullable = false, length = 255)
-    var title: String?,
+    var title: String,
     @Column(nullable = false, length = 255)
-    var emoji: String?,
+    var emoji: String,
     @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     var userMessage: String,

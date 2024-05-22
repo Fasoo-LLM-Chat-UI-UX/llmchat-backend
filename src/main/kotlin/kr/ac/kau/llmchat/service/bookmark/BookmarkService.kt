@@ -14,6 +14,8 @@ import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.openai.OpenAiChatClient
+import org.springframework.data.domain.Page
+import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.scheduling.annotation.Async
 import org.springframework.stereotype.Service
@@ -29,7 +31,7 @@ class BookmarkService(
     fun create(
         user: UserEntity,
         dto: BookmarkDto.CreateRequest,
-    ) {
+    ): BookmarkEntity {
         val assistantMessage = messageRepository.findByIdOrNull(dto.messageId)
         if (assistantMessage == null || assistantMessage.thread.user.id != user.id) {
             throw IllegalArgumentException("Invalid message")
@@ -46,6 +48,7 @@ class BookmarkService(
 
         val bookmarkEntity =
             BookmarkEntity(
+                user = user,
                 message = assistantMessage,
                 userMessage = userMessage.content,
                 assistantMessage = assistantMessage.content,
@@ -53,6 +56,7 @@ class BookmarkService(
                 emoji = emoji(userMessage, assistantMessage),
             )
         bookmarkRepository.save(bookmarkEntity)
+        return bookmarkEntity
     }
 
     private fun summarize(
@@ -83,5 +87,61 @@ class BookmarkService(
         val prompt = Prompt(messages)
         val response = chatClient.call(prompt)
         return response.result.output.content
+    }
+
+    fun getAllBookmarks(
+        user: UserEntity,
+        pageable: Pageable,
+    ): Page<BookmarkEntity> {
+        return bookmarkRepository.findAllByUser(user, pageable)
+    }
+
+    fun getBookmark(
+        user: UserEntity,
+        id: Long,
+    ): BookmarkEntity {
+        val bookmark = bookmarkRepository.findByIdOrNull(id)
+
+        if (bookmark == null || bookmark.user.id != user.id) {
+            throw IllegalArgumentException("Bookmark not found")
+        }
+
+        return bookmark
+    }
+
+    fun updateBookmark(
+        user: UserEntity,
+        id: Long,
+        dto: BookmarkDto.UpdateRequest,
+    ): BookmarkEntity {
+        val bookmark = bookmarkRepository.findByIdOrNull(id)
+
+        if (bookmark == null || bookmark.user.id != user.id) {
+            throw IllegalArgumentException("Bookmark not found")
+        }
+
+        if (dto.title != null) {
+            bookmark.title = dto.title
+        }
+
+        if (dto.emoji != null) {
+            bookmark.emoji = dto.emoji
+        }
+
+        bookmarkRepository.save(bookmark)
+        return bookmark
+    }
+
+    fun deleteBookmark(
+        user: UserEntity,
+        id: Long,
+    ) {
+        val bookmark = bookmarkRepository.findByIdOrNull(id)
+
+        if (bookmark == null || bookmark.user.id != user.id) {
+            throw IllegalArgumentException("Bookmark not found")
+        }
+
+        bookmarkRepository.delete(bookmark)
     }
 }
