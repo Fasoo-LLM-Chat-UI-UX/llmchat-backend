@@ -114,6 +114,14 @@ class ChatController(
         chatService.softDeleteThread(threadId = threadId, user = user)
     }
 
+    @DeleteMapping("/thread/{threadId}/soft-delete-all")
+    @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 소프트 삭제", description = "모든 쓰레드를 소프트 삭제하는 API")
+    fun softDeleteAllThread() {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.softDeleteAllThread(user = user)
+    }
+
     @PostMapping("/thread/{threadId}/restore")
     @SecurityRequirement(name = "Authorization")
     @Operation(summary = "소프트 삭제된 쓰레드 복구", description = "소프트 삭제된 쓰레드를 복구하는 API")

@@ -257,6 +257,15 @@ class ChatService(
         threadRepository.save(thread)
     }
 
+    @Transactional
+    fun softDeleteAllThread(user: UserEntity) {
+        val threads = threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = Pageable.unpaged())
+        threads.forEach {
+            it.deletedAt = Instant.now()
+        }
+        threadRepository.saveAll(threads)
+    }
+
     fun restoreThread(
         threadId: Long,
         user: UserEntity,
