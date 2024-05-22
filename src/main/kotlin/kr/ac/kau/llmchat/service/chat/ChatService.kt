@@ -273,6 +273,7 @@ class ChatService(
         threadRepository.save(thread)
     }
 
+    @Transactional
     fun hardDeleteThread(
         threadId: Long,
         user: UserEntity,
