@@ -154,5 +154,15 @@ class ChatController(
         return sseEmitter
     }
 
-    // TODO: 쓰레드 메시지 수정 API
+    @PutMapping("/thread/{threadId}/message/{messageId}/edit")
+    @SecurityRequirement(name = "Authorization")
+    fun editMessage(
+        @PathVariable threadId: Long,
+        @PathVariable messageId: Long,
+        @RequestBody dto: ChatDto.SendMessageRequest,
+    ): SseEmitter {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        val sseEmitter = chatService.editMessage(threadId = threadId, messageId = messageId, user = user, dto = dto)
+        return sseEmitter
+    }
 }

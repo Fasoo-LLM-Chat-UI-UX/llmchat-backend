@@ -233,4 +233,77 @@ class ChatService(
         messageRepository.deleteAllByThread(thread)
         threadRepository.delete(thread)
     }
+
+    fun editMessage(
+        threadId: Long,
+        messageId: Long,
+        user: UserEntity,
+        dto: ChatDto.SendMessageRequest,
+    ): SseEmitter {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt != null) {
+            throw IllegalArgumentException("Thread is deleted")
+        }
+
+        val message = messageRepository.findByIdOrNull(messageId)
+        if (message == null || message.thread.id != threadId || message.role != RoleEnum.USER) {
+            throw IllegalArgumentException("Message not found or not editable")
+        }
+
+        // 현재 메시지 ID보다 큰 메시지들을 모두 삭제
+        messageRepository.deleteAllByThreadAndIdGreaterThan(thread, messageId)
+
+        // 메시지 내용 업데이트 및 저장
+        message.content = dto.content
+        messageRepository.save(message)
+
+        // 남아있는 메시지들로 대화 재생성
+        val emitter = SseEmitter()
+        val messages: List<Message> =
+            messageRepository
+                .findAllByThread(thread = thread, pageable = Pageable.unpaged())
+                .map {
+                    if (it.role == RoleEnum.USER) {
+                        UserMessage(it.content)
+                    } else {
+                        AssistantMessage(it.content)
+                    }
+                }
+                .toList()
+        val prompt = Prompt(messages)
+        val responseFlux = chatClient.stream(prompt)
+
+        val chatMessage = StringBuilder()
+
+        responseFlux.subscribe(
+            { chatResponse ->
+                try {
+                    chatResponse.result.output.content?.let {
+                        chatMessage.append(it)
+                    }
+                    emitter.send(SseEmitter.event().data(chatResponse))
+                } catch (e: IOException) {
+                    emitter.completeWithError(e)
+                }
+            },
+            { error ->
+                emitter.completeWithError(error)
+            },
+            {
+                emitter.complete()
+                messageRepository.save(
+                    MessageEntity(
+                        thread = thread,
+                        role = RoleEnum.ASSISTANT,
+                        content = chatMessage.toString(),
+                    ),
+                )
+            },
+        )
+
+        return emitter
+    }
 }

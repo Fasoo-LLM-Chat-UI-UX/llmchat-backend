@@ -13,4 +13,9 @@ interface MessageRepository : JpaRepository<MessageEntity, Long> {
     ): Page<MessageEntity>
 
     fun deleteAllByThread(thread: ThreadEntity)
+
+    fun deleteAllByThreadAndIdGreaterThan(
+        thread: ThreadEntity,
+        messageId: Long,
+    )
 }
