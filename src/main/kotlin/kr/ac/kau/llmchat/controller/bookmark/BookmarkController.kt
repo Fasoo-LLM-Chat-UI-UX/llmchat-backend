@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.service.bookmark.BookmarkService
+import org.springdoc.core.converters.models.PageableAsQueryParam
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.domain.Sort
@@ -46,6 +47,7 @@ class BookmarkController(
     @GetMapping
     @SecurityRequirement(name = "Authorization")
     @Operation(summary = "북마크 목록 조회", description = "북마크 목록 조회")
+    @PageableAsQueryParam
     fun getAllBookmarks(
         @Parameter(hidden = true)
         @PageableDefault(size = 100, sort = ["id"], direction = Sort.Direction.DESC)
