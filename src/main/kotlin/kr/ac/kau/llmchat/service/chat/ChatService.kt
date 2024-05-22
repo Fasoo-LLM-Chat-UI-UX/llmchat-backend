@@ -3,6 +3,7 @@ package kr.ac.kau.llmchat.service.chat
 import jakarta.transaction.Transactional
 import kr.ac.kau.llmchat.controller.chat.ChatDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
+import kr.ac.kau.llmchat.domain.bookmark.BookmarkRepository
 import kr.ac.kau.llmchat.domain.chat.MessageEntity
 import kr.ac.kau.llmchat.domain.chat.MessageRepository
 import kr.ac.kau.llmchat.domain.chat.RoleEnum
@@ -29,6 +30,7 @@ class ChatService(
     private val threadRepository: ThreadRepository,
     private val messageRepository: MessageRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
+    private val bookmarkRepository: BookmarkRepository,
 ) {
     fun getThreads(
         user: UserEntity,
@@ -136,12 +138,27 @@ class ChatService(
         threadId: Long,
         user: UserEntity,
         pageable: Pageable,
-    ): Page<MessageEntity> {
+    ): Page<ChatDto.GetMessageResponse> {
         val thread = threadRepository.findByIdOrNull(threadId)
         if (thread == null || thread.user.id != user.id) {
             throw IllegalArgumentException("Thread not found")
         }
-        return messageRepository.findAllByThread(thread = thread, pageable = pageable)
+        val messages = messageRepository.findAllByThread(thread = thread, pageable = pageable)
+        val bookmarks =
+            bookmarkRepository.findAllById(messages.map { it.id })
+                .map { it.message.id }
+                .toSet()
+
+        return messages.map { message ->
+            ChatDto.GetMessageResponse(
+                id = message.id,
+                role = message.role,
+                content = message.content,
+                isBookmarked = message.id in bookmarks,
+                createdAt = message.createdAt,
+                updatedAt = message.updatedAt,
+            )
+        }
     }
 
     fun sendMessage(

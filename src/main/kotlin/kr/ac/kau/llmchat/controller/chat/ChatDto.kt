@@ -30,6 +30,7 @@ sealed class ChatDto {
         val id: Long,
         val role: RoleEnum,
         val content: String,
+        val isBookmarked: Boolean,
         val createdAt: Instant,
         val updatedAt: Instant,
     )

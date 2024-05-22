@@ -154,15 +154,6 @@ class ChatController(
     ): Page<ChatDto.GetMessageResponse> {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         return chatService.getMessages(threadId = threadId, user = user, pageable = pageable)
-            .map { message ->
-                ChatDto.GetMessageResponse(
-                    id = message.id,
-                    role = message.role,
-                    content = message.content,
-                    createdAt = message.createdAt,
-                    updatedAt = message.updatedAt,
-                )
-            }
     }
 
     @PostMapping("/thread/{threadId}/send-message")

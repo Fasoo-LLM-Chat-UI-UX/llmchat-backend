@@ -24,7 +24,7 @@ class BookmarkEntity(
     @JoinColumn(name = "user_id", nullable = false)
     var user: UserEntity,
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "message_id", nullable = false)
+    @JoinColumn(name = "message_id", nullable = false, unique = true)
     var message: MessageEntity,
     @Column(nullable = false, length = 255)
     var title: String,
