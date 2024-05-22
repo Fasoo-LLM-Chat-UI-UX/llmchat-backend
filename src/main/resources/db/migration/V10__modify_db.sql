@@ -14,4 +14,4 @@ CREATE TABLE llmchat.bookmarks
 
 ALTER TABLE llmchat.bookmarks
     ADD CONSTRAINT FK_BOOKMARKS_ON_MESSAGE FOREIGN KEY (message_id) REFERENCES llmchat.messages (id)
-    ON DELETE SET NULL;
+    ON DELETE CASCADE;
