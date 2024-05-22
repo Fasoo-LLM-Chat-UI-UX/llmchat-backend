@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.service.chat
 
+import jakarta.transaction.Transactional
 import kr.ac.kau.llmchat.controller.chat.ChatDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.chat.MessageEntity
@@ -249,6 +250,7 @@ class ChatService(
         threadRepository.delete(thread)
     }
 
+    @Transactional
     fun editMessage(
         threadId: Long,
         messageId: Long,
