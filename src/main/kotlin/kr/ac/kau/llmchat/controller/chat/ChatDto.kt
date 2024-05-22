@@ -18,6 +18,10 @@ sealed class ChatDto {
         val updatedAt: Instant,
     )
 
+    data class ManualRenameThreadRequest(
+        val chatName: String,
+    )
+
     data class SendMessageRequest(
         val content: String,
     )

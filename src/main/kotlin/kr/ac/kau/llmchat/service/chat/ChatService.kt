@@ -99,6 +99,23 @@ class ChatService(
         return emitter
     }
 
+    fun manualRenameThread(
+        threadId: Long,
+        user: UserEntity,
+        dto: ChatDto.ManualRenameThreadRequest,
+    ) {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt != null) {
+            throw IllegalArgumentException("Thread is deleted")
+        }
+
+        thread.chatName = dto.chatName
+        threadRepository.save(thread)
+    }
+
     fun getMessages(
         threadId: Long,
         user: UserEntity,

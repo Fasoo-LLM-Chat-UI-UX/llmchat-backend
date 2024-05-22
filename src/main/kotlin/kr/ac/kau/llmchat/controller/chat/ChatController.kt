@@ -67,6 +67,16 @@ class ChatController(
         return sseEmitter
     }
 
+    @PutMapping("/thread/{threadId}/manual-rename")
+    @SecurityRequirement(name = "Authorization")
+    fun manualRenameThread(
+        @PathVariable threadId: Long,
+        @RequestBody dto: ChatDto.ManualRenameThreadRequest,
+    ) {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.manualRenameThread(threadId = threadId, user = user, dto = dto)
+    }
+
     @GetMapping("/thread/{threadId}/message")
     @SecurityRequirement(name = "Authorization")
     @PageableAsQueryParam
