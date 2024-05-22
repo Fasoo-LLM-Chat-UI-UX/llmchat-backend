@@ -33,4 +33,9 @@ sealed class ChatDto {
         val createdAt: Instant,
         val updatedAt: Instant,
     )
+
+    data class SseMessageResponse(
+        val messageId: Long,
+        val content: String,
+    )
 }

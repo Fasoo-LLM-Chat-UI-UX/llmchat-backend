@@ -88,8 +88,8 @@ class ChatService(
                 try {
                     chatResponse.result.output.content?.let {
                         chatMessage.append(it)
+                        emitter.send(SseEmitter.event().data(ChatDto.SseMessageResponse(messageId = -1, content = it)))
                     }
-                    emitter.send(SseEmitter.event().data(chatResponse))
                 } catch (e: IOException) {
                     emitter.completeWithError(e)
                 }
@@ -172,14 +172,25 @@ class ChatService(
         val responseFlux = chatClient.stream(prompt)
 
         val chatMessage = StringBuilder()
+        val assistantMessage =
+            MessageEntity(
+                thread = thread,
+                role = RoleEnum.ASSISTANT,
+                content = "",
+            )
+        messageRepository.save(assistantMessage)
 
         responseFlux.subscribe(
             { chatResponse ->
                 try {
                     chatResponse.result.output.content?.let {
                         chatMessage.append(it)
+                        emitter.send(
+                            SseEmitter.event().data(
+                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, content = it),
+                            ),
+                        )
                     }
-                    emitter.send(SseEmitter.event().data(chatResponse))
                 } catch (e: IOException) {
                     emitter.completeWithError(e)
                 }
@@ -189,13 +200,8 @@ class ChatService(
             },
             {
                 emitter.complete()
-                messageRepository.save(
-                    MessageEntity(
-                        thread = thread,
-                        role = RoleEnum.ASSISTANT,
-                        content = chatMessage.toString(),
-                    ),
-                )
+                assistantMessage.content = chatMessage.toString()
+                messageRepository.save(assistantMessage)
             },
         )
 
@@ -277,14 +283,25 @@ class ChatService(
         val responseFlux = chatClient.stream(prompt)
 
         val chatMessage = StringBuilder()
+        val assistantMessage =
+            MessageEntity(
+                thread = thread,
+                role = RoleEnum.ASSISTANT,
+                content = "",
+            )
+        messageRepository.save(assistantMessage)
 
         responseFlux.subscribe(
             { chatResponse ->
                 try {
                     chatResponse.result.output.content?.let {
                         chatMessage.append(it)
+                        emitter.send(
+                            SseEmitter.event().data(
+                                ChatDto.SseMessageResponse(messageId = assistantMessage.id, content = it),
+                            ),
+                        )
                     }
-                    emitter.send(SseEmitter.event().data(chatResponse))
                 } catch (e: IOException) {
                     emitter.completeWithError(e)
                 }
@@ -294,13 +311,8 @@ class ChatService(
             },
             {
                 emitter.complete()
-                messageRepository.save(
-                    MessageEntity(
-                        thread = thread,
-                        role = RoleEnum.ASSISTANT,
-                        content = chatMessage.toString(),
-                    ),
-                )
+                assistantMessage.content = chatMessage.toString()
+                messageRepository.save(assistantMessage)
             },
         )
 
