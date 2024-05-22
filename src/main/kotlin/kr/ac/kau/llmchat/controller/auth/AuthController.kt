@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.controller.auth
 
+import io.swagger.v3.oas.annotations.Operation
 import kr.ac.kau.llmchat.service.auth.AuthService
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.PostMapping
@@ -13,6 +14,7 @@ class AuthController(
     private val authService: AuthService,
 ) {
     @PostMapping("/register-by-username")
+    @Operation(summary = "사용자 이름 회원 가입", description = "사용자 이름과 비밀번호로 회원 가입하는 API")
     fun registerByUsername(
         @RequestBody dto: AuthDto.RegisterByUsernameRequest,
     ) {
@@ -20,6 +22,7 @@ class AuthController(
     }
 
     @PostMapping("/login-by-username")
+    @Operation(summary = "사용자 이름 로그인", description = "사용자 이름과 비밀번호로 로그인하는 API")
     fun loginByUsername(
         @RequestBody dto: AuthDto.LoginByUsernameRequest,
     ): ResponseEntity<AuthDto.LoginResponse> {
@@ -28,6 +31,7 @@ class AuthController(
     }
 
     @PostMapping("/login-by-google")
+    @Operation(summary = "구글 로그인", description = "구글 OAuth2로 로그인하는 API")
     fun loginByGoogle(
         @RequestBody dto: AuthDto.LoginByGoogleRequest,
     ): ResponseEntity<AuthDto.LoginResponse> {
@@ -36,6 +40,7 @@ class AuthController(
     }
 
     @PostMapping("/login-by-kakao")
+    @Operation(summary = "카카오 로그인", description = "카카오 OAuth2로 로그인하는 API")
     fun loginByKakao(
         @RequestBody dto: AuthDto.LoginByKakaoRequest,
     ): ResponseEntity<AuthDto.LoginResponse> {
@@ -44,6 +49,7 @@ class AuthController(
     }
 
     @PostMapping("/login-by-naver")
+    @Operation(summary = "네이버 로그인", description = "네이버 OAuth2로 로그인하는 API")
     fun loginByNaver(
         @RequestBody dto: AuthDto.LoginByNaverRequest,
     ): ResponseEntity<AuthDto.LoginResponse> {
@@ -52,6 +58,7 @@ class AuthController(
     }
 
     @PostMapping("/check-username")
+    @Operation(summary = "사용자 이름 중복 확인", description = "회원 가입 시 사용자 이름 중복을 확인하는 API")
     fun checkUsername(
         @RequestBody dto: AuthDto.CheckUsernameRequest,
     ): ResponseEntity<AuthDto.CheckUsernameResponse> {

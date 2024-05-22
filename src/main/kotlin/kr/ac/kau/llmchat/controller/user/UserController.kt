@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.controller.user
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.service.user.UserService
@@ -17,6 +18,7 @@ class UserController(
 ) {
     @GetMapping("/profile")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "프로필 조회", description = "사용자의 프로필을 조회하는 API")
     fun getProfile(): UserDto.GetProfileResponse {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         return UserDto.GetProfileResponse(
@@ -30,6 +32,7 @@ class UserController(
 
     @PostMapping("/profile")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "프로필 수정", description = "사용자의 프로필을 수정하는 API")
     fun updateProfile(
         @RequestBody dto: UserDto.UpdateProfileRequest,
     ) {
@@ -39,6 +42,7 @@ class UserController(
 
     @GetMapping("/preference")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "환경 설정 조회", description = "사용자의 환경 설정을 조회하는 API")
     fun getPreference(): UserDto.GetPreferenceResponse {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         return userService
@@ -58,6 +62,7 @@ class UserController(
 
     @PostMapping("/preference")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "환경 설정 수정", description = "사용자의 환경 설정을 수정하는 API")
     fun updatePreference(
         @RequestBody dto: UserDto.UpdatePreferenceRequest,
     ) {

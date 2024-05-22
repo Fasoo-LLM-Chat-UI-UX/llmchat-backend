@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.controller.chat
 
+import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
 import kr.ac.kau.llmchat.domain.auth.UserEntity
@@ -27,6 +28,7 @@ class ChatController(
 ) {
     @GetMapping("/thread")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 목록 조회", description = "사용자의 쓰레드 목록을 조회하는 API")
     @PageableAsQueryParam
     fun getThreads(
         @Parameter(hidden = true)
@@ -47,6 +49,7 @@ class ChatController(
 
     @PostMapping("/thread")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 생성", description = "새로운 쓰레드를 생성하는 API")
     fun createThread(): ChatDto.CreateThreadResponse {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         val thread = chatService.createThread(user = user)
@@ -60,6 +63,7 @@ class ChatController(
 
     @PutMapping("/thread/{threadId}/auto-rename")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 자동 이름 변경", description = "대화 내역을 요약해 쓰레드의 이름을 지어 주는 API")
     fun autoRenameThread(
         @PathVariable threadId: Long,
     ): SseEmitter {
@@ -68,8 +72,20 @@ class ChatController(
         return sseEmitter
     }
 
+    @PutMapping("/thread/{threadId}/manual-rename")
+    @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 수동 이름 변경", description = "사용자가 직접 쓰레드의 이름을 변경하는 API")
+    fun manualRenameThread(
+        @PathVariable threadId: Long,
+        @RequestBody dto: ChatDto.ManualRenameThreadRequest,
+    ) {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.manualRenameThread(threadId = threadId, user = user, dto = dto)
+    }
+
     @GetMapping("/thread/deleted")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "삭제된 쓰레드 목록 조회", description = "소프트 삭제된 쓰레드 목록을 조회하는 API")
     @PageableAsQueryParam
     fun getDeletedThreads(
         @Parameter(hidden = true)
@@ -90,6 +106,7 @@ class ChatController(
 
     @DeleteMapping("/thread/{threadId}/soft-delete")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 소프트 삭제", description = "쓰레드를 소프트 삭제하는 API")
     fun softDeleteThread(
         @PathVariable threadId: Long,
     ) {
@@ -99,6 +116,7 @@ class ChatController(
 
     @PostMapping("/thread/{threadId}/restore")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "소프트 삭제된 쓰레드 복구", description = "소프트 삭제된 쓰레드를 복구하는 API")
     fun restoreThread(
         @PathVariable threadId: Long,
     ) {
@@ -108,6 +126,7 @@ class ChatController(
 
     @DeleteMapping("/thread/{threadId}/hard-delete")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 하드 삭제", description = "쓰레드를 하드 삭제하는 API. 소프트 삭제된 쓰레드만 가능하며, 복구 불가.")
     fun hardDeleteThread(
         @PathVariable threadId: Long,
     ) {
@@ -115,18 +134,9 @@ class ChatController(
         chatService.hardDeleteThread(threadId = threadId, user = user)
     }
 
-    @PutMapping("/thread/{threadId}/manual-rename")
-    @SecurityRequirement(name = "Authorization")
-    fun manualRenameThread(
-        @PathVariable threadId: Long,
-        @RequestBody dto: ChatDto.ManualRenameThreadRequest,
-    ) {
-        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
-        chatService.manualRenameThread(threadId = threadId, user = user, dto = dto)
-    }
-
     @GetMapping("/thread/{threadId}/message")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "메시지 목록 조회", description = "쓰레드의 메시지 목록을 조회하는 API")
     @PageableAsQueryParam
     fun getMessages(
         @PathVariable threadId: Long,
@@ -149,6 +159,7 @@ class ChatController(
 
     @PostMapping("/thread/{threadId}/send-message")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "메시지 전송", description = "쓰레드에 메시지를 전송하고 AI의 응답을 받는 API")
     fun sendMessage(
         @PathVariable threadId: Long,
         @RequestBody dto: ChatDto.SendMessageRequest,
@@ -165,6 +176,7 @@ class ChatController(
 
     @PutMapping("/thread/{threadId}/message/{messageId}/edit")
     @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "메시지 수정", description = "메시지를 수정하고 AI의 응답을 받는 API. 사용자가 보낸 메시지만 수정 가능.")
     fun editMessage(
         @PathVariable threadId: Long,
         @PathVariable messageId: Long,
