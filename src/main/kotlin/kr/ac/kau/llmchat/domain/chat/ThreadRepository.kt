@@ -11,6 +11,12 @@ interface ThreadRepository : JpaRepository<ThreadEntity, Long> {
         pageable: Pageable,
     ): Page<ThreadEntity>
 
+    fun findAllByUserAndChatNameContainsAndDeletedAtIsNull(
+        user: UserEntity,
+        chatName: String,
+        pageable: Pageable,
+    ): Page<ThreadEntity>
+
     fun findAllByUserAndDeletedAtIsNotNull(
         user: UserEntity,
         pageable: Pageable,

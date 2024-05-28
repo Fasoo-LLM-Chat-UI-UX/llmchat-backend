@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.PutMapping
 import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
+import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RestController
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 
@@ -34,9 +35,11 @@ class ChatController(
         @Parameter(hidden = true)
         @PageableDefault(size = 100, sort = ["id"], direction = Sort.Direction.DESC)
         pageable: Pageable,
+        @RequestParam(required = false)
+        query: String?,
     ): Page<ChatDto.GetThreadResponse> {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
-        return chatService.getThreads(user = user, pageable = pageable)
+        return chatService.getThreads(user = user, pageable = pageable, query = query)
             .map { thread ->
                 ChatDto.GetThreadResponse(
                     id = thread.id,
