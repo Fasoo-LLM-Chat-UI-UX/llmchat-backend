@@ -34,6 +34,16 @@ class SecurityConfiguration {
                 csrf
                     .disable()
             }
+            .cors { cors ->
+                cors
+                    .configurationSource { _ ->
+                        val corsConfiguration = org.springframework.web.cors.CorsConfiguration()
+                        corsConfiguration.allowedOrigins = listOf("http://localhost:3000")
+                        corsConfiguration.allowedMethods = listOf("GET", "POST", "PUT", "DELETE")
+                        corsConfiguration.allowCredentials = true
+                        corsConfiguration
+                    }
+            }
             .addFilterBefore(
                 JwtAuthenticationFilter(authService = authService),
                 UsernamePasswordAuthenticationFilter::class.java,
