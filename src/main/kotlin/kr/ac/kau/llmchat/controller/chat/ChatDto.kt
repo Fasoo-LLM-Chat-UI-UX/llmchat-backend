@@ -22,10 +22,6 @@ sealed class ChatDto {
         val chatName: String,
     )
 
-    data class SendMessageRequest(
-        val content: String,
-    )
-
     data class GetMessageResponse(
         val id: Long,
         val role: RoleEnum,

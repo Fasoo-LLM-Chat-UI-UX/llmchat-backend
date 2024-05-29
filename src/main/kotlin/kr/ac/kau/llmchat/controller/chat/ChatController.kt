@@ -64,9 +64,9 @@ class ChatController(
         )
     }
 
-    @PutMapping("/thread/{threadId}/auto-rename")
+    @GetMapping("/thread/{threadId}/auto-rename")
     @SecurityRequirement(name = "Authorization")
-    @Operation(summary = "쓰레드 자동 이름 변경", description = "대화 내역을 요약해 쓰레드의 이름을 지어 주는 API")
+    @Operation(summary = "쓰레드 자동 이름 변경 - SSE", description = "대화 내역을 요약해 쓰레드의 이름을 지어 주는 API")
     fun autoRenameThread(
         @PathVariable threadId: Long,
     ): SseEmitter {
@@ -159,33 +159,33 @@ class ChatController(
         return chatService.getMessages(threadId = threadId, user = user, pageable = pageable)
     }
 
-    @PostMapping("/thread/{threadId}/send-message")
+    @GetMapping("/thread/{threadId}/send-message")
     @SecurityRequirement(name = "Authorization")
-    @Operation(summary = "메시지 전송", description = "쓰레드에 메시지를 전송하고 AI의 응답을 받는 API")
+    @Operation(summary = "메시지 전송 - SSE", description = "쓰레드에 메시지를 전송하고 AI의 응답을 받는 API")
     fun sendMessage(
         @PathVariable threadId: Long,
-        @RequestBody dto: ChatDto.SendMessageRequest,
+        @RequestParam question: String,
     ): SseEmitter {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         val sseEmitter =
             chatService.sendMessage(
                 threadId = threadId,
                 user = user,
-                dto = dto,
+                question = question,
             )
         return sseEmitter
     }
 
-    @PutMapping("/thread/{threadId}/message/{messageId}/edit")
+    @GetMapping("/thread/{threadId}/message/{messageId}/edit")
     @SecurityRequirement(name = "Authorization")
-    @Operation(summary = "메시지 수정", description = "메시지를 수정하고 AI의 응답을 받는 API. 사용자가 보낸 메시지만 수정 가능.")
+    @Operation(summary = "메시지 수정 - SSE", description = "메시지를 수정하고 AI의 응답을 받는 API. 사용자가 보낸 메시지만 수정 가능.")
     fun editMessage(
         @PathVariable threadId: Long,
         @PathVariable messageId: Long,
-        @RequestBody dto: ChatDto.SendMessageRequest,
+        @RequestParam question: String,
     ): SseEmitter {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
-        val sseEmitter = chatService.editMessage(threadId = threadId, messageId = messageId, user = user, dto = dto)
+        val sseEmitter = chatService.editMessage(threadId = threadId, messageId = messageId, user = user, question = question)
         return sseEmitter
     }
 }

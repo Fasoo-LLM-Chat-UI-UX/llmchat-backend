@@ -176,7 +176,7 @@ class ChatService(
     fun sendMessage(
         threadId: Long,
         user: UserEntity,
-        dto: ChatDto.SendMessageRequest,
+        question: String,
     ): SseEmitter {
         val thread = threadRepository.findByIdOrNull(threadId)
         if (thread == null || thread.user.id != user.id) {
@@ -189,7 +189,7 @@ class ChatService(
             MessageEntity(
                 thread = thread,
                 role = RoleEnum.USER,
-                content = dto.content,
+                content = question,
             )
         messageRepository.save(userMessage)
 
@@ -208,7 +208,7 @@ class ChatService(
         val emitter = SseEmitter()
         emitter.send(
             SseEmitter.event().data(
-                ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = dto.content),
+                ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = question),
             ),
         )
         val messages: MutableList<Message> =
@@ -333,7 +333,7 @@ class ChatService(
         threadId: Long,
         messageId: Long,
         user: UserEntity,
-        dto: ChatDto.SendMessageRequest,
+        question: String,
     ): SseEmitter {
         val thread = threadRepository.findByIdOrNull(threadId)
         if (thread == null || thread.user.id != user.id) {
@@ -352,7 +352,7 @@ class ChatService(
         messageRepository.deleteAllByThreadAndIdGreaterThan(thread, messageId)
 
         // 메시지 내용 업데이트 및 저장
-        userMessage.content = dto.content
+        userMessage.content = question
         messageRepository.save(userMessage)
 
         var systemMessage: String? = null
@@ -371,7 +371,7 @@ class ChatService(
         val emitter = SseEmitter()
         emitter.send(
             SseEmitter.event().data(
-                ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = dto.content),
+                ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = question),
             ),
         )
         val messages: MutableList<Message> =
