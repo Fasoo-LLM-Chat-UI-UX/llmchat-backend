@@ -198,4 +198,16 @@ class ChatController(
         val sseEmitter = chatService.editMessage(threadId = threadId, messageId = messageId, user = user, question = question)
         return sseEmitter
     }
+
+    @PostMapping("/thread/{threadId}/message/{messageId}/rate")
+    @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "메시지 평가", description = "메시지를 평가하는 API")
+    fun voteMessage(
+        @PathVariable threadId: Long,
+        @PathVariable messageId: Long,
+        @RequestBody dto: ChatDto.VoteMessageRequest,
+    ) {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        chatService.voteMessage(threadId = threadId, messageId = messageId, user = user, dto = dto)
+    }
 }

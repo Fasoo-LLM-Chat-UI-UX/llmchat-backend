@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.controller.chat
 
+import kr.ac.kau.llmchat.domain.chat.RatingEnum
 import kr.ac.kau.llmchat.domain.chat.RoleEnum
 import java.time.Instant
 
@@ -35,5 +36,9 @@ sealed class ChatDto {
         val messageId: Long,
         val role: RoleEnum,
         val content: String,
+    )
+
+    data class VoteMessageRequest(
+        val rating: RatingEnum,
     )
 }

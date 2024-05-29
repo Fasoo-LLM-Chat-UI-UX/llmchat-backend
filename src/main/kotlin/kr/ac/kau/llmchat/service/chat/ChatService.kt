@@ -190,6 +190,7 @@ class ChatService(
                 thread = thread,
                 role = RoleEnum.USER,
                 content = question,
+                rating = null,
             )
         messageRepository.save(userMessage)
 
@@ -234,6 +235,7 @@ class ChatService(
                 thread = thread,
                 role = RoleEnum.ASSISTANT,
                 content = "",
+                rating = null,
             )
         messageRepository.save(assistantMessage)
 
@@ -397,6 +399,7 @@ class ChatService(
                 thread = thread,
                 role = RoleEnum.ASSISTANT,
                 content = "",
+                rating = null,
             )
         messageRepository.save(assistantMessage)
 
@@ -431,5 +434,32 @@ class ChatService(
         )
 
         return emitter
+    }
+
+    fun voteMessage(
+        threadId: Long,
+        messageId: Long,
+        user: UserEntity,
+        dto: ChatDto.VoteMessageRequest,
+    ) {
+        val thread = threadRepository.findByIdOrNull(threadId)
+        if (thread == null || thread.user.id != user.id) {
+            throw IllegalArgumentException("Thread not found")
+        }
+        if (thread.deletedAt != null) {
+            throw IllegalArgumentException("Thread is deleted")
+        }
+
+        val message = messageRepository.findByIdOrNull(messageId)
+        if (message == null || message.thread.id != threadId) {
+            throw IllegalArgumentException("Message not found")
+        }
+
+        if (message.role != RoleEnum.ASSISTANT) {
+            throw IllegalArgumentException("Only assistant message can be rated")
+        }
+
+        message.rating = dto.rating
+        messageRepository.save(message)
     }
 }

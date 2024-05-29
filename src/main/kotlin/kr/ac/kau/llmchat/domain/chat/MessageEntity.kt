@@ -29,6 +29,9 @@ class MessageEntity(
     @Lob
     @Column(nullable = false, columnDefinition = "TEXT")
     var content: String,
+    @Column(nullable = true, length = 255, columnDefinition = "VARCHAR(255)")
+    @Enumerated(value = EnumType.STRING)
+    var rating: RatingEnum?,
     @Column(nullable = false)
     @CreationTimestamp
     var createdAt: Instant = Instant.EPOCH,
