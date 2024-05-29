@@ -3,6 +3,7 @@ package kr.ac.kau.llmchat.controller.chat
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.Parameter
 import io.swagger.v3.oas.annotations.security.SecurityRequirement
+import jakarta.servlet.http.HttpServletResponse
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.service.chat.ChatService
 import org.springdoc.core.converters.models.PageableAsQueryParam
@@ -69,7 +70,10 @@ class ChatController(
     @Operation(summary = "쓰레드 자동 이름 변경 - SSE", description = "대화 내역을 요약해 쓰레드의 이름을 지어 주는 API")
     fun autoRenameThread(
         @PathVariable threadId: Long,
+        response: HttpServletResponse,
     ): SseEmitter {
+        response.setHeader("X-Accel-Buffering", "no") // Disable buffering for Nginx
+
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         val sseEmitter = chatService.autoRenameThread(threadId = threadId, user = user)
         return sseEmitter
@@ -165,7 +169,10 @@ class ChatController(
     fun sendMessage(
         @PathVariable threadId: Long,
         @RequestParam question: String,
+        response: HttpServletResponse,
     ): SseEmitter {
+        response.setHeader("X-Accel-Buffering", "no") // Disable buffering for Nginx
+
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         val sseEmitter =
             chatService.sendMessage(
@@ -183,7 +190,10 @@ class ChatController(
         @PathVariable threadId: Long,
         @PathVariable messageId: Long,
         @RequestParam question: String,
+        response: HttpServletResponse,
     ): SseEmitter {
+        response.setHeader("X-Accel-Buffering", "no") // Disable buffering for Nginx
+
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
         val sseEmitter = chatService.editMessage(threadId = threadId, messageId = messageId, user = user, question = question)
         return sseEmitter
