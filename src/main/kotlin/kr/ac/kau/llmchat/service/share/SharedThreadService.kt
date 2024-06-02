@@ -64,8 +64,21 @@ class SharedThreadService(
         messageId: Long,
         user: UserEntity,
     ) {
+        val thread =
+            threadRepository.findByIdOrNull(threadId)
+                ?: throw IllegalArgumentException("Thread not found")
+        val message =
+            messageRepository.findByIdOrNull(messageId)
+                ?: throw IllegalArgumentException("Message not found")
+        if (message.thread.id != thread.id) {
+            throw IllegalArgumentException("Message does not belong to the thread")
+        }
+        if (thread.user.id != user.id) {
+            throw IllegalArgumentException("User does not have permission to share the thread")
+        }
+
         val sharedThread =
-            sharedThreadRepository.findAllByUserAndThreadAndMessage(user, threadId, messageId)
+            sharedThreadRepository.findAllByUserAndThreadAndMessage(user, thread, message)
                 ?: throw IllegalArgumentException("Shared thread not found")
 
         sharedThreadRepository.delete(sharedThread)

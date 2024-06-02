@@ -1,6 +1,8 @@
 package kr.ac.kau.llmchat.domain.share
 
 import kr.ac.kau.llmchat.domain.auth.UserEntity
+import kr.ac.kau.llmchat.domain.chat.MessageEntity
+import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.stereotype.Repository
 
@@ -12,7 +14,7 @@ interface SharedThreadRepository : JpaRepository<SharedThreadEntity, Long> {
 
     fun findAllByUserAndThreadAndMessage(
         user: UserEntity,
-        threadId: Long,
-        messageId: Long,
+        thread: ThreadEntity,
+        message: MessageEntity,
     ): SharedThreadEntity?
 }
