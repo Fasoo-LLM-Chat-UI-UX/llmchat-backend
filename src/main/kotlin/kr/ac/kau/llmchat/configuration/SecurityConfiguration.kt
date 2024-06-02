@@ -21,6 +21,7 @@ class SecurityConfiguration {
                         "/api/v1/auth/register-by-*",
                         "/api/v1/auth/login-by-*",
                         "/api/v1/auth/check-username",
+                        "/api/v1/share/shared-thread/**",
                     )
                     .permitAll()
                     .requestMatchers(
