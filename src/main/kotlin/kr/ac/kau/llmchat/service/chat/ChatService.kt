@@ -468,7 +468,7 @@ class ChatService(
         user: UserEntity,
         query: String,
     ): List<ChatDto.SearchThreadResponse> {
-        val threads = threadRepository.findAllByUserAndDeletedAtIsNotNull(user = user, pageable = Pageable.unpaged())
+        val threads = threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = Pageable.unpaged())
         return threads.mapNotNull { thread ->
             val searchContent = StringBuilder()
 
