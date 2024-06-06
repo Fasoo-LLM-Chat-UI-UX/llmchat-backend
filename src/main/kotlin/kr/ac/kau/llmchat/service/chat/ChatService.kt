@@ -470,33 +470,39 @@ class ChatService(
     ): List<ChatDto.SearchThreadResponse> {
         val threads = threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = Pageable.unpaged())
         return threads.mapNotNull { thread ->
-            val searchContent = StringBuilder()
+            var matchHighlight: String? = null
 
-            searchContent.append(thread.chatName)
-            searchContent.append(" ")
-
-            thread.messages.forEach { message ->
-                searchContent.append(message.content)
-                searchContent.append(" ")
+            // 쓰레드 이름에서 쿼리 일치 여부 확인
+            val chatNameIndex = thread.chatName.indexOf(query, ignoreCase = true)
+            if (chatNameIndex != -1) {
+                val start = maxOf(0, chatNameIndex - 50)
+                val end = minOf(thread.chatName.length, chatNameIndex + query.length + 50)
+                matchHighlight =
+                    thread.chatName.substring(start, end)
+                        .replace(query, "<b>$query</b>", ignoreCase = true)
             }
 
-            val contentString = searchContent.toString()
-            val queryIndex = contentString.indexOf(query, ignoreCase = true)
+            // 메시지에서 쿼리 일치 여부 확인
+            if (matchHighlight == null) {
+                for (message in thread.messages) {
+                    val messageContentIndex = message.content.indexOf(query, ignoreCase = true)
+                    if (messageContentIndex != -1) {
+                        val start = maxOf(0, messageContentIndex - 50)
+                        val end = minOf(message.content.length, messageContentIndex + query.length + 50)
+                        matchHighlight =
+                            message.content.substring(start, end)
+                                .replace(query, "<b>$query</b>", ignoreCase = true)
+                        break // 최초 매칭되는 메시지를 찾으면 루프 종료
+                    }
+                }
+            }
 
-            if (queryIndex != -1) {
-                val start = maxOf(0, queryIndex - 50)
-                val end = minOf(contentString.length, queryIndex + query.length + 50)
-
-                // 하이라이트 부분 추출
-                val highlightSnippet =
-                    contentString
-                        .substring(start, end)
-                        .replace(query, "<b>$query</b>", ignoreCase = true)
-
+            // 매칭되는 하이라이트가 있는 경우 응답 생성
+            if (matchHighlight != null) {
                 ChatDto.SearchThreadResponse(
                     id = thread.id,
                     chatName = thread.chatName,
-                    matchHighlight = highlightSnippet,
+                    matchHighlight = matchHighlight,
                     createdAt = thread.createdAt,
                     updatedAt = thread.updatedAt,
                 )
