@@ -1,6 +1,5 @@
 package kr.ac.kau.llmchat.service.chat
 
-import jakarta.transaction.Transactional
 import kr.ac.kau.llmchat.controller.chat.ChatDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.bookmark.BookmarkRepository
@@ -20,6 +19,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
+import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.io.IOException
 import java.time.Instant
@@ -461,5 +461,48 @@ class ChatService(
 
         message.rating = dto.rating
         messageRepository.save(message)
+    }
+
+    @Transactional
+    fun searchThreads(
+        user: UserEntity,
+        query: String,
+    ): List<ChatDto.SearchThreadResponse> {
+        val threads = threadRepository.findAllByUserAndDeletedAtIsNotNull(user = user, pageable = Pageable.unpaged())
+        return threads.mapNotNull { thread ->
+            val searchContent = StringBuilder()
+
+            searchContent.append(thread.chatName)
+            searchContent.append(" ")
+
+            thread.messages.forEach { message ->
+                searchContent.append(message.content)
+                searchContent.append(" ")
+            }
+
+            val contentString = searchContent.toString()
+            val queryIndex = contentString.indexOf(query, ignoreCase = true)
+
+            if (queryIndex != -1) {
+                val start = maxOf(0, queryIndex - 50)
+                val end = minOf(contentString.length, queryIndex + query.length + 50)
+
+                // 하이라이트 부분 추출
+                val highlightSnippet =
+                    contentString
+                        .substring(start, end)
+                        .replace(query, "<b>$query</b>", ignoreCase = true)
+
+                ChatDto.SearchThreadResponse(
+                    id = thread.id,
+                    chatName = thread.chatName,
+                    matchHighlight = highlightSnippet,
+                    createdAt = thread.createdAt,
+                    updatedAt = thread.updatedAt,
+                )
+            } else {
+                null
+            }
+        }
     }
 }

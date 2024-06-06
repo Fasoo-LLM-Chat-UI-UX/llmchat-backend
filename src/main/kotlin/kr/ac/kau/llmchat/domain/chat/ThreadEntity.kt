@@ -8,6 +8,7 @@ import jakarta.persistence.GenerationType
 import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.ManyToOne
+import jakarta.persistence.OneToMany
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
@@ -31,4 +32,7 @@ class ThreadEntity(
     var updatedAt: Instant = Instant.EPOCH,
     @Column(nullable = true)
     var deletedAt: Instant? = null,
-)
+) {
+    @OneToMany(mappedBy = "thread", fetch = FetchType.LAZY)
+    var messages: MutableList<MessageEntity> = mutableListOf()
+}

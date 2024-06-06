@@ -12,6 +12,14 @@ sealed class ChatDto {
         val updatedAt: Instant,
     )
 
+    data class SearchThreadResponse(
+        val id: Long,
+        val chatName: String,
+        val matchHighlight: String,
+        val createdAt: Instant,
+        val updatedAt: Instant,
+    )
+
     data class CreateThreadResponse(
         val id: Long,
         val chatName: String,

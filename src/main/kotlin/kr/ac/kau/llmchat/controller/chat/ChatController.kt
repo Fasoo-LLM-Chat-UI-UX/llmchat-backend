@@ -51,6 +51,16 @@ class ChatController(
             }
     }
 
+    @GetMapping("/thread/search")
+    @SecurityRequirement(name = "Authorization")
+    @Operation(summary = "쓰레드 검색", description = "사용자의 쓰레드를 검색하는 API")
+    fun searchThreads(
+        @RequestParam query: String,
+    ): List<ChatDto.SearchThreadResponse> {
+        val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
+        return chatService.searchThreads(user = user, query = query)
+    }
+
     @PostMapping("/thread")
     @SecurityRequirement(name = "Authorization")
     @Operation(summary = "쓰레드 생성", description = "새로운 쓰레드를 생성하는 API")
