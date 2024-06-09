@@ -16,6 +16,8 @@ sealed class ChatDto {
         val id: Long,
         val chatName: String,
         val matchHighlight: String,
+        val messageId: Long?,
+        val messageIdIndex: Long?,
         val createdAt: Instant,
         val updatedAt: Instant,
     )

@@ -471,29 +471,32 @@ class ChatService(
         val threads = threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = Pageable.unpaged())
         return threads.mapNotNull { thread ->
             var matchHighlight: String? = null
+            var messageId: Long? = null
+            var messageIdIndex: Long? = null
 
             // 쓰레드 이름에서 쿼리 일치 여부 확인
             val chatNameIndex = thread.chatName.indexOf(query, ignoreCase = true)
             if (chatNameIndex != -1) {
                 val start = maxOf(0, chatNameIndex - 50)
                 val end = minOf(thread.chatName.length, chatNameIndex + query.length + 50)
-                matchHighlight =
-                    thread.chatName.substring(start, end)
-                        .replace(query, "<b>$query</b>", ignoreCase = true)
+                matchHighlight = thread.chatName.substring(start, end)
+                messageId = null
             }
 
             // 메시지에서 쿼리 일치 여부 확인
             if (matchHighlight == null) {
-                for (message in thread.messages) {
+                var i = 0L
+                for (message in thread.messages.sortedBy { -it.id }) {
                     val messageContentIndex = message.content.indexOf(query, ignoreCase = true)
                     if (messageContentIndex != -1) {
                         val start = maxOf(0, messageContentIndex - 50)
                         val end = minOf(message.content.length, messageContentIndex + query.length + 50)
-                        matchHighlight =
-                            message.content.substring(start, end)
-                                .replace(query, "<b>$query</b>", ignoreCase = true)
-                        break // 최초 매칭되는 메시지를 찾으면 루프 종료
+                        matchHighlight = message.content.substring(start, end)
+                        messageId = message.id
+                        messageIdIndex = i
+                        break
                     }
+                    i++
                 }
             }
 
@@ -503,6 +506,8 @@ class ChatService(
                     id = thread.id,
                     chatName = thread.chatName,
                     matchHighlight = matchHighlight,
+                    messageId = messageId,
+                    messageIdIndex = messageIdIndex,
                     createdAt = thread.createdAt,
                     updatedAt = thread.updatedAt,
                 )
