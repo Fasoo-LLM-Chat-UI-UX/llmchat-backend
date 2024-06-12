@@ -81,7 +81,6 @@ data class GoogleUserInfo(
     val picture: String,
     val email: String,
     val emailVerified: Boolean,
-    val locale: String,
 )
 
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy::class)
