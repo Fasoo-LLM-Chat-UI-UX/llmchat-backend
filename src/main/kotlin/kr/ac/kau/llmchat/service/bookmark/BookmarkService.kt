@@ -13,7 +13,7 @@ import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.prompt.Prompt
-import org.springframework.ai.openai.OpenAiChatClient
+import org.springframework.ai.openai.OpenAiChatModel
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
@@ -22,7 +22,7 @@ import org.springframework.stereotype.Service
 
 @Service
 class BookmarkService(
-    private val chatClient: OpenAiChatClient,
+    private val chatModel: OpenAiChatModel,
     private val bookmarkRepository: BookmarkRepository,
     private val messageRepository: MessageRepository,
 ) {
@@ -75,7 +75,7 @@ class BookmarkService(
                 AssistantMessage(assistantMessage.content),
             )
         val prompt = Prompt(messages)
-        val response = chatClient.call(prompt)
+        val response = chatModel.call(prompt)
         return response.result.output.content
     }
 
@@ -90,7 +90,7 @@ class BookmarkService(
                 AssistantMessage(assistantMessage.content),
             )
         val prompt = Prompt(messages)
-        val response = chatClient.call(prompt)
+        val response = chatModel.call(prompt)
         return response.result.output.content
     }
 

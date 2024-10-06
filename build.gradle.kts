@@ -21,7 +21,7 @@ repositories {
     maven { url = uri("https://repo.spring.io/milestone") }
 }
 
-extra["springAiVersion"] = "0.8.1"
+extra["springAiVersion"] = "1.0.0-M2"
 
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-data-jpa")
