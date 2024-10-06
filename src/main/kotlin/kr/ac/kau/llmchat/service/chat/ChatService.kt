@@ -13,6 +13,7 @@ import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
+import org.springframework.ai.chat.prompt.ChatOptionsBuilder
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.openai.OpenAiChatModel
 import org.springframework.data.domain.Page
@@ -253,11 +254,33 @@ class ChatService(
             Prompt(
                 listOf(
                     SystemMessage(
-                        "Do you have specific information about this? Answer 'YES' if you have it, " +
-                            "or 'NO' if external retrieval is required.",
+                        """
+                        Determine if the information requested is within your training data. If it is, respond with 'YES'. If it requires external retrieval beyond your training data, respond with 'NO'. 
+
+                        # Steps
+
+                        1. Analyze the request to understand what specific information is being asked.
+                        2. Evaluate if the information is accessible within your training data, which includes knowledge up to October 2023.
+                        3. Based on the evaluation, decide:
+                           - If the information is within the known data, answer 'YES'.
+                           - If the information requires data beyond October 2023 or external sources, answer 'NO'.
+
+                        # Output Format
+
+                        - Respond with a single word: either 'YES' or 'NO'.
+
+                        # Notes
+
+                        - Ensure clarity about the cut-off date for available information.
+                        - Only provide the specified single-word responses.
+                        """.trimIndent(),
                     ),
                     UserMessage(question),
                 ),
+                ChatOptionsBuilder.builder()
+                    .withModel("gpt-4o")
+                    .withMaxTokens(10)
+                    .build(),
             )
         val isRagNeeded = chatModel.call(checkRagNeededPrompt).result.output.content?.contains("NO") == true
 
