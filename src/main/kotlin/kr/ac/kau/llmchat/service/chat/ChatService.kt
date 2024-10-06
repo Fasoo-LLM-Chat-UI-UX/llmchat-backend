@@ -259,14 +259,14 @@ class ChatService(
                     UserMessage(question),
                 ),
             )
-        val isRagNeeded = chatModel.call(checkRagNeededPrompt).result.output.content?.contains("YES") == true
+        val isRagNeeded = chatModel.call(checkRagNeededPrompt).result.output.content?.contains("NO") == true
 
         emitter.send(
             SseEmitter.event().data(
                 ChatDto.SseMessageResponse(
                     messageId = assistantMessage.id,
                     role = assistantMessage.role,
-                    content = "RAG is needed: $isRagNeeded\n\n",
+                    content = "$isRagNeeded\n\n",
                 ),
             ),
         )
