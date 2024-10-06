@@ -255,30 +255,33 @@ class ChatService(
                 listOf(
                     SystemMessage(
                         """
-                        Determine if the information requested is within your training data. If it is, respond with 'YES'. If it requires external retrieval beyond your training data, respond with 'NO'. 
+                        **System Prompt: External Information Check**
 
-                        # Steps
-
-                        1. Analyze the request to understand what specific information is being asked.
-                        2. Evaluate if the information is accessible within your training data, which includes knowledge up to October 2023.
-                        3. Based on the evaluation, decide:
-                           - If the information is within the known data, answer 'YES'.
-                           - If the information requires data beyond October 2023 or external sources, answer 'NO'.
-
-                        # Output Format
-
-                        - Respond with a single word: either 'YES' or 'NO'.
-
-                        # Notes
-
-                        - Ensure clarity about the cut-off date for available information.
-                        - Only provide the specified single-word responses.
+                        **Objective:** Identify if external information retrieval is necessary.
+                        
+                        **Instructions:**
+                        
+                        1. **Understand the Request:**
+                           - Carefully read the user's question to determine what information they are asking for.
+                        
+                        2. **Check Your Knowledge:**
+                           - Consider your knowledge base, which includes information up to October 2023.
+                        
+                        3. **Make a Decision:**
+                           - If the answer is within the information you know, respond with 'YES'.
+                           - If the answer requires knowledge beyond your data or needs external sources, respond with 'NO'.
+                        
+                        **Response Format:**
+                        - Provide a single response: either 'YES' or 'NO'.
+                        
+                        **Important Note:**
+                        - Remember, your knowledge includes data only up to October 2023. Use this to guide your decision.
                         """.trimIndent(),
                     ),
                     UserMessage(question),
                 ),
                 ChatOptionsBuilder.builder()
-                    .withModel("gpt-4o")
+                    .withModel("gpt-4o-mini")
                     .withMaxTokens(10)
                     .build(),
             )
