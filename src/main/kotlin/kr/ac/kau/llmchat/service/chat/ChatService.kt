@@ -239,6 +239,58 @@ class ChatService(
             )
         messageRepository.save(assistantMessage)
 
+        emitter.send(
+            SseEmitter.event().data(
+                ChatDto.SseMessageResponse(
+                    messageId = assistantMessage.id,
+                    role = assistantMessage.role,
+                    content = "Checking RAG is needed... ",
+                ),
+            ),
+        )
+
+        val checkRagNeededPrompt =
+            Prompt(
+                listOf(
+                    SystemMessage(
+                        "Do you have specific information about this? Answer 'YES' if you have it, " +
+                            "or 'NO' if external retrieval is required.",
+                    ),
+                    UserMessage(question),
+                ),
+            )
+        val isRagNeeded = chatClient.call(checkRagNeededPrompt).result.output.content?.contains("YES") == true
+
+        emitter.send(
+            SseEmitter.event().data(
+                ChatDto.SseMessageResponse(
+                    messageId = assistantMessage.id,
+                    role = assistantMessage.role,
+                    content = "RAG is needed: $isRagNeeded\n\n",
+                ),
+            ),
+        )
+
+        if (isRagNeeded) {
+            emitter.send(
+                SseEmitter.event().data(
+                    ChatDto.SseMessageResponse(
+                        messageId = assistantMessage.id,
+                        role = assistantMessage.role,
+                        content = "Retrieving information from external sources... ",
+                    ),
+                ),
+            )
+
+            // TODO: Implement external information retrieval
+
+            emitter.send(
+                SseEmitter.event().data(
+                    ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = "Done.\n\n"),
+                ),
+            )
+        }
+
         responseFlux.subscribe(
             { chatResponse ->
                 try {
