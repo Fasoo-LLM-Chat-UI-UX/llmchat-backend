@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.service.chat
 
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kr.ac.kau.llmchat.controller.chat.ChatDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.bookmark.BookmarkRepository
@@ -9,6 +10,7 @@ import kr.ac.kau.llmchat.domain.chat.RoleEnum
 import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
 import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
+import kr.ac.kau.llmchat.service.reader.JinaReaderApi
 import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
@@ -24,6 +26,14 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.io.IOException
 import java.time.Instant
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
+import retrofit2.Retrofit
+import retrofit2.converter.jackson.JacksonConverterFactory
+import retrofit2.Call
+import retrofit2.http.GET
+import retrofit2.http.Query
 
 @Service
 class ChatService(
@@ -33,11 +43,65 @@ class ChatService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val bookmarkRepository: BookmarkRepository,
 ) {
+    private val jinaReaderApi = Retrofit.Builder()
+            .baseUrl("https://jina.ai/")
+            .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
+            .client(
+                    OkHttpClient.Builder()
+                            .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                            .connectTimeout(5, TimeUnit.SECONDS)
+                            .readTimeout(5, TimeUnit.SECONDS)
+                            .build(),
+            )
+            .build()
+            .create(JinaReaderApi::class.java)
+
+    private fun fetchUrlContent(url: String): String? {
+        return try {
+            val response = jinaReaderApi.extractContent(url).execute()
+            if (response.isSuccessful) {
+                val content = response.body()?.content
+                if (!content.isNullOrBlank()) {
+                    "Content from $url:\n$content"
+                } else null
+            } else null
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+
+    // URL을 추출하는 함수
+    private fun extractUrls(text: String): List<String> {
+        val urlRegex = "(https?://[^\\s]+)".toRegex()
+        return urlRegex.findAll(text).map { it.value }.toList()
+    }
+
     fun getThreads(
         user: UserEntity,
         pageable: Pageable,
         query: String?,
     ): Page<ThreadEntity> {
+        // query에 URL이 포함되어 있는지 확인하고 추출
+        val enhancedQuery = if (query != null) {
+            val urls = extractUrls(query)
+            val urlContents = urls.mapNotNull { fetchUrlContent(it) }
+
+            // URL에서 가져온 콘텐츠를 포함한 새로운 query 생성
+            if (urlContents.isNotEmpty()) {
+                """
+            $query
+            
+            Referenced URL Contents:
+            ${urlContents.joinToString("\n\n")}
+            """.trimIndent()
+            } else {
+                query
+            }
+        } else {
+            null
+        }
+
         return if (query == null) {
             threadRepository.findAllByUserAndDeletedAtIsNull(
                 user = user,
