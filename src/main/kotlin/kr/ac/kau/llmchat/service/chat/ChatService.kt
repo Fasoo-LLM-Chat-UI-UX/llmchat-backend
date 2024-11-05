@@ -31,9 +31,6 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
-import retrofit2.Call
-import retrofit2.http.GET
-import retrofit2.http.Query
 
 @Service
 class ChatService(
@@ -82,6 +79,7 @@ class ChatService(
         pageable: Pageable,
         query: String?,
     ): Page<ThreadEntity> {
+
         // query에 URL이 포함되어 있는지 확인하고 추출
         val enhancedQuery = if (query != null) {
             val urls = extractUrls(query)
