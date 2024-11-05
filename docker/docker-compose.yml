@@ -10,5 +10,16 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
 
+  chroma:
+    image: chromadb/chroma:latest
+    ports:
+      - 8000:8000
+    volumes:
+      - chroma-data:/chroma/chroma
+    environment:
+      - ALLOW_RESET=true
+      - ANONYMIZED_TELEMETRY=false
+
 volumes:
   mysql-data:
+  chroma-data:
