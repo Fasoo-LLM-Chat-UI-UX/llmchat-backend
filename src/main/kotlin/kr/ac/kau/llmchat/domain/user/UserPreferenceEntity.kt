@@ -11,6 +11,7 @@ import jakarta.persistence.Id
 import jakarta.persistence.JoinColumn
 import jakarta.persistence.OneToOne
 import kr.ac.kau.llmchat.domain.auth.UserEntity
+import kr.ac.kau.llmchat.domain.document.SecurityLevelEnum
 import org.hibernate.annotations.CreationTimestamp
 import org.hibernate.annotations.UpdateTimestamp
 import java.time.Instant
@@ -41,6 +42,9 @@ class UserPreferenceEntity(
     @Column(nullable = false, length = 255, columnDefinition = "VARCHAR(255)")
     @Enumerated(value = EnumType.STRING)
     var modelVersion: ModelVersionEnum,
+    @Column(nullable = false, length = 255, columnDefinition = "VARCHAR(255) DEFAULT 'LOW'")
+    @Enumerated(value = EnumType.STRING)
+    var securityLevel: SecurityLevelEnum = SecurityLevelEnum.LOW,
     @Column(nullable = false)
     @CreationTimestamp
     var createdAt: Instant = Instant.EPOCH,
