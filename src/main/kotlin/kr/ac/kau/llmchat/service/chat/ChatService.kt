@@ -209,6 +209,7 @@ class ChatService(
 
         thread.chatName = dto.chatName
         threadRepository.save(thread)
+
     }
 
     fun getMessages(
