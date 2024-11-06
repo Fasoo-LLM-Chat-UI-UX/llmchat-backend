@@ -10,13 +10,18 @@ import kr.ac.kau.llmchat.domain.chat.RoleEnum
 import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
 import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
+import kr.ac.kau.llmchat.service.document.DocumentService
 import kr.ac.kau.llmchat.service.reader.JinaReaderApi
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.prompt.ChatOptionsBuilder
 import org.springframework.ai.chat.prompt.Prompt
+import org.springframework.ai.document.Document
 import org.springframework.ai.openai.OpenAiChatModel
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
@@ -24,13 +29,11 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
-import java.io.IOException
-import java.time.Instant
-import okhttp3.ConnectionPool
-import okhttp3.OkHttpClient
-import java.util.concurrent.TimeUnit
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
+import java.io.IOException
+import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 @Service
 class ChatService(
@@ -39,16 +42,20 @@ class ChatService(
     private val messageRepository: MessageRepository,
     private val userPreferenceRepository: UserPreferenceRepository,
     private val bookmarkRepository: BookmarkRepository,
+    private val documentService: DocumentService,
 ) {
-    private val jinaReaderApi = Retrofit.Builder()
+    private val logger = LoggerFactory.getLogger(javaClass)
+
+    private val jinaReaderApi =
+        Retrofit.Builder()
             .baseUrl("https://jina.ai/")
             .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
             .client(
-                    OkHttpClient.Builder()
-                            .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
-                            .connectTimeout(5, TimeUnit.SECONDS)
-                            .readTimeout(5, TimeUnit.SECONDS)
-                            .build(),
+                OkHttpClient.Builder()
+                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build(),
             )
             .build()
             .create(JinaReaderApi::class.java)
@@ -60,13 +67,16 @@ class ChatService(
                 val content = response.body()?.content
                 if (!content.isNullOrBlank()) {
                     "Content from $url:\n$content"
-                } else null
-            } else null
+                } else {
+                    null
+                }
+            } else {
+                null
+            }
         } catch (e: Exception) {
             null
         }
     }
-
 
     // URL을 추출하는 함수
     private fun extractUrls(text: String): List<String> {
@@ -79,26 +89,26 @@ class ChatService(
         pageable: Pageable,
         query: String?,
     ): Page<ThreadEntity> {
-
         // query에 URL이 포함되어 있는지 확인하고 추출
-        val enhancedQuery = if (query != null) {
-            val urls = extractUrls(query)
-            val urlContents = urls.mapNotNull { fetchUrlContent(it) }
+        val enhancedQuery =
+            if (query != null) {
+                val urls = extractUrls(query)
+                val urlContents = urls.mapNotNull { fetchUrlContent(it) }
 
-            // URL에서 가져온 콘텐츠를 포함한 새로운 query 생성
-            if (urlContents.isNotEmpty()) {
-                """
-            $query
-            
-            Referenced URL Contents:
-            ${urlContents.joinToString("\n\n")}
-            """.trimIndent()
+                // URL에서 가져온 콘텐츠를 포함한 새로운 query 생성
+                if (urlContents.isNotEmpty()) {
+                    """
+                    $query
+                    
+                    Referenced URL Contents:
+                    ${urlContents.joinToString("\n\n")}
+                    """.trimIndent()
+                } else {
+                    query
+                }
             } else {
-                query
+                null
             }
-        } else {
-            null
-        }
 
         return if (query == null) {
             threadRepository.findAllByUserAndDeletedAtIsNull(
@@ -207,7 +217,6 @@ class ChatService(
 
         thread.chatName = dto.chatName
         threadRepository.save(thread)
-
     }
 
     fun getMessages(
@@ -290,8 +299,6 @@ class ChatService(
         if (systemMessage != null) {
             messages.add(0, SystemMessage(systemMessage))
         }
-        val prompt = Prompt(messages)
-        val responseFlux = chatModel.stream(prompt)
 
         val chatMessage = StringBuilder()
         val assistantMessage =
@@ -371,7 +378,31 @@ class ChatService(
                 ),
             )
 
-            // TODO: Implement external information retrieval
+            // Retrieve relevant documents
+            val relevantDocs =
+                documentService.searchSimilarDocuments(
+                    user = user,
+                    query = question,
+                    topK = 3,
+                )
+
+            if (relevantDocs.isNotEmpty()) {
+                // Build context from retrieved documents
+                val context =
+                    buildString {
+                        appendLine("Here's relevant information from our knowledge base:")
+                        appendLine()
+                        relevantDocs.forEachIndexed { index: Int, doc: Document ->
+                            appendLine("Document ${index + 1}:")
+                            appendLine(doc.content)
+                            appendLine()
+                        }
+                        appendLine("Please use this information to help answer the question.")
+                    }
+
+                // Add context to system message
+                messages.add(0, SystemMessage(context))
+            }
 
             emitter.send(
                 SseEmitter.event().data(
@@ -379,6 +410,9 @@ class ChatService(
                 ),
             )
         }
+
+        val prompt = Prompt(messages)
+        val responseFlux = chatModel.stream(prompt)
 
         responseFlux.subscribe(
             { chatResponse ->

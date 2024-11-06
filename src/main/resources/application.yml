@@ -21,6 +21,12 @@ spring:
         options:
           model: gpt-4o
           temperature: 0.7
+    vectorstore:
+      chroma:
+        initialize-schema: true
+        client:
+          host: http://localhost
+          port: 8000
   web:
     resources:
       add-mappings: false

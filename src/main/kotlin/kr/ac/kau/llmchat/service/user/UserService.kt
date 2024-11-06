@@ -68,11 +68,11 @@ class UserService(
             userPreference.aboutUserMessage = dto.aboutUserMessage
             userPreference.aboutMessageEnabled = dto.aboutMessageEnabled
             userPreference.modelVersion = dto.modelVersion
-
+            userPreference.securityLevel = dto.securityLevel
             return
         }
 
-        val newUserPreference =
+        userPreferenceRepository.save(
             UserPreferenceEntity(
                 user = user,
                 uiTheme = dto.uiTheme,
@@ -82,7 +82,8 @@ class UserService(
                 aboutUserMessage = dto.aboutUserMessage,
                 aboutMessageEnabled = dto.aboutMessageEnabled,
                 modelVersion = dto.modelVersion,
-            )
-        userPreferenceRepository.save(newUserPreference)
+                securityLevel = dto.securityLevel,
+            ),
+        )
     }
 }

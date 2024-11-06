@@ -29,6 +29,7 @@ sealed class UserDto {
         var aboutUserMessage: String?,
         var aboutMessageEnabled: Boolean,
         var modelVersion: ModelVersionEnum,
+        val securityLevel: SecurityLevelEnum,
     )
 
     data class UpdatePreferenceRequest(
@@ -39,5 +40,6 @@ sealed class UserDto {
         var aboutUserMessage: String?,
         var aboutMessageEnabled: Boolean,
         var modelVersion: ModelVersionEnum,
+        val securityLevel: SecurityLevelEnum,
     )
 }

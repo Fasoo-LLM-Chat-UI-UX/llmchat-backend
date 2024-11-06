@@ -6,6 +6,7 @@
 - Spring Boot 3.2.4
 - JPA
 - MySQL 8.0
+- Chroma
 - Docker
 
 ## 로컬 환경 설정
@@ -21,6 +22,9 @@
 ## ChatGPT API 연동
 직접 ChatGPT API를 구현할 수도 있지만, Spring AI 프로젝트를 통해 ChatGPT API를 연동합니다.
 적절한 수준의 추상화를 통해, 다른 AI API로 전환해야 할 때 용이할 것으로 기대합니다.
+
+## Vector 데이터베이스
+본 애플리케이션은 문서 유사도 검색과 RAG(Retrieval Augmented Generation)를 위해 Chroma를 벡터 데이터베이스로 사용합니다.
 
 ## 서버 배포
 1. main 브랜치에 코드가 푸시되면 자동으로 서버에 배포됩니다. 이 프로세스는 [GitHub Actions](https://github.com/Fasoo-LLM-Chat-UI-UX/llmchat-backend/blob/main/.github/workflows/cd.yml)를 통해 진행됩니다.
