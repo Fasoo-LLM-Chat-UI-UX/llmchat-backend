@@ -56,6 +56,7 @@ class UserController(
                     aboutUserMessage = it.aboutUserMessage,
                     aboutMessageEnabled = it.aboutMessageEnabled,
                     modelVersion = it.modelVersion,
+                    securityLevel = it.securityLevel,
                 )
             }
     }

@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.controller.user
 
+import kr.ac.kau.llmchat.domain.document.SecurityLevelEnum
 import kr.ac.kau.llmchat.domain.user.ModelVersionEnum
 import kr.ac.kau.llmchat.domain.user.SpeechVoiceEnum
 import kr.ac.kau.llmchat.domain.user.UILanguageCodeEnum
@@ -29,7 +30,7 @@ sealed class UserDto {
         var aboutUserMessage: String?,
         var aboutMessageEnabled: Boolean,
         var modelVersion: ModelVersionEnum,
-        val securityLevel: SecurityLevelEnum,
+        var securityLevel: SecurityLevelEnum,
     )
 
     data class UpdatePreferenceRequest(
@@ -40,6 +41,6 @@ sealed class UserDto {
         var aboutUserMessage: String?,
         var aboutMessageEnabled: Boolean,
         var modelVersion: ModelVersionEnum,
-        val securityLevel: SecurityLevelEnum,
+        var securityLevel: SecurityLevelEnum,
     )
 }
