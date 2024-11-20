@@ -11,7 +11,6 @@ import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
 import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
 import kr.ac.kau.llmchat.service.document.DocumentService
-import kr.ac.kau.llmchat.service.reader.JinaReaderApi
 import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import org.slf4j.LoggerFactory
@@ -39,12 +38,25 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 //SEP API 인터페이스 정의
-interface SepApi{
+interface SerpApi {
     @GET("search")
-    fun searchContent(@Query("query") query:String): Call<SepApiResponse>
+    fun search(
+            @Query("q") query: String,  // 검색어
+            @Query("engine") engine: String = "google",  // 검색 엔진 (기본 Google)
+            @Query("api_key") apiKey: String            // SERP API 키
+    ): Call<SerpApiResponse>
 }
 
-data class SepApiResponse(val content: String)
+data class SerpApiResponse(
+        val organic_results: List<OrganicResult>
+)
+
+data class OrganicResult(
+        val title: String,
+        val link: String,
+        val snippet: String?
+)
+
 
 @Service
 class ChatService(
@@ -58,68 +70,70 @@ class ChatService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     // SEP API 클라이언트 설정
-    private val sepApi =
-            Retrofit.Builder()
-                    .baseUrl("https://sep-api-url.com/") // SEP API URL로 변경 필요
-                    .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
-                    .client(
-                            OkHttpClient.Builder()
-                                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
-                                    .connectTimeout(5, TimeUnit.SECONDS)
-                                    .readTimeout(5, TimeUnit.SECONDS)
-                                    .build()
-                    )
-                    .build()
-                    .create(SepApi::class.java)
+    private val serpApi = Retrofit.Builder()
+            .baseUrl("https://serpapi.com/")  // SERP API 기본 URL
+            .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
+            .client(
+                    OkHttpClient.Builder()
+                            .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                            .connectTimeout(5, TimeUnit.SECONDS)
+                            .readTimeout(5, TimeUnit.SECONDS)
+                            .build()
+            )
+            .build()
+            .create(SerpApi::class.java)
 
-    // SEP API 호출 함수
-    private fun fetchSepContent(query: String): String? {
+    // 검색 요청 로직 추가
+    private fun fetchSerpContent(query: String): String? {
+        val apiKey = "your_api_key"  // SERP API 키를 여기에 설정하세요
         return try {
-            val response = sepApi.searchContent(query).execute()
+            val response = serpApi.search(query = query, apiKey = apiKey).execute()
             if (response.isSuccessful) {
-                response.body()?.content
+                val results = response.body()?.organic_results
+                results?.joinToString(separator = "\n") { result ->
+                    """
+                Title: ${result.title}
+                Link: ${result.link}
+                Snippet: ${result.snippet.orEmpty()}
+                """.trimIndent()
+                }
             } else {
+                logger.error("SERP API 호출 실패: ${response.errorBody()?.string()}")
                 null
             }
         } catch (e: Exception) {
-            logger.error("SEP API 요청 실패", e)
+            logger.error("SERP API 호출 중 예외 발생", e)
             null
         }
     }
 
-    // URL에서 내용을 가져오는 기존 함수 대신 SEP API 결과를 사용하는 함수
-    private fun fetchContent(query: String): String? {
-        return fetchSepContent(query) ?: "SEP API에서 결과를 가져오지 못했습니다."
-    }
+
 
 
     fun getThreads(
-        user: UserEntity,
-        pageable: Pageable,
-        query: String?,
+            user: UserEntity,
+            pageable: Pageable,
+            query: String?,
     ): Page<ThreadEntity> {
         val enhancedQuery = query?.let {
-            val sepContent = fetchSepContent(it)
-            if (!sepContent.isNullOrEmpty()) {
+            val serpContent = fetchSerpContent(it)
+            if (!serpContent.isNullOrEmpty()) {
                 """
-                $query
-                
-                SEP API Content:
-                $sepContent
-                """.trimIndent()
+            $query
+            
+            SERP API Results:
+            $serpContent
+            """.trimIndent()
             } else {
                 query
             }
         }
         return if (query == null) {
-            threadRepository.findAllByUserAndDeletedAtIsNull(
-                    user = user,
-                    pageable = pageable,
-            )
+            threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = pageable)
         } else {
             threadRepository.findAllByUserAndChatNameContainsAndDeletedAtIsNull(
                     user = user,
-                    chatName = query,
+                    chatName = enhancedQuery ?: query,
                     pageable = pageable,
             )
         }
@@ -692,4 +706,9 @@ class ChatService(
             }
         }
     }
+
+
+
 }
+
+
