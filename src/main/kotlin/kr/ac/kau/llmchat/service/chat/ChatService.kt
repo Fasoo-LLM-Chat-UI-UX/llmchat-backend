@@ -29,11 +29,22 @@ import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Query
 import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.TimeUnit
+
+//SEP API 인터페이스 정의
+interface SepApi{
+    @GET("search")
+    fun searchContent(@Query("query") query:String): Call<SepApiResponse>
+}
+
+data class SepApiResponse(val content: String)
 
 @Service
 class ChatService(
@@ -46,80 +57,70 @@ class ChatService(
 ) {
     private val logger = LoggerFactory.getLogger(javaClass)
 
-    private val jinaReaderApi =
-        Retrofit.Builder()
-            .baseUrl("https://jina.ai/")
-            .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
-            .client(
-                OkHttpClient.Builder()
-                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
-                    .connectTimeout(5, TimeUnit.SECONDS)
-                    .readTimeout(5, TimeUnit.SECONDS)
-                    .build(),
-            )
-            .build()
-            .create(JinaReaderApi::class.java)
+    // SEP API 클라이언트 설정
+    private val sepApi =
+            Retrofit.Builder()
+                    .baseUrl("https://sep-api-url.com/") // SEP API URL로 변경 필요
+                    .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
+                    .client(
+                            OkHttpClient.Builder()
+                                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                                    .connectTimeout(5, TimeUnit.SECONDS)
+                                    .readTimeout(5, TimeUnit.SECONDS)
+                                    .build()
+                    )
+                    .build()
+                    .create(SepApi::class.java)
 
-    private fun fetchUrlContent(url: String): String? {
+    // SEP API 호출 함수
+    private fun fetchSepContent(query: String): String? {
         return try {
-            val response = jinaReaderApi.extractContent(url).execute()
+            val response = sepApi.searchContent(query).execute()
             if (response.isSuccessful) {
-                val content = response.body()?.content
-                if (!content.isNullOrBlank()) {
-                    "Content from $url:\n$content"
-                } else {
-                    null
-                }
+                response.body()?.content
             } else {
                 null
             }
         } catch (e: Exception) {
+            logger.error("SEP API 요청 실패", e)
             null
         }
     }
 
-    // URL을 추출하는 함수
-    private fun extractUrls(text: String): List<String> {
-        val urlRegex = "(https?://[^\\s]+)".toRegex()
-        return urlRegex.findAll(text).map { it.value }.toList()
+    // URL에서 내용을 가져오는 기존 함수 대신 SEP API 결과를 사용하는 함수
+    private fun fetchContent(query: String): String? {
+        return fetchSepContent(query) ?: "SEP API에서 결과를 가져오지 못했습니다."
     }
+
 
     fun getThreads(
         user: UserEntity,
         pageable: Pageable,
         query: String?,
     ): Page<ThreadEntity> {
-        // query에 URL이 포함되어 있는지 확인하고 추출
-        val enhancedQuery =
-            if (query != null) {
-                val urls = extractUrls(query)
-                val urlContents = urls.mapNotNull { fetchUrlContent(it) }
-
-                // URL에서 가져온 콘텐츠를 포함한 새로운 query 생성
-                if (urlContents.isNotEmpty()) {
-                    """
-                    $query
-                    
-                    Referenced URL Contents:
-                    ${urlContents.joinToString("\n\n")}
-                    """.trimIndent()
-                } else {
-                    query
-                }
+        val enhancedQuery = query?.let {
+            val sepContent = fetchSepContent(it)
+            if (!sepContent.isNullOrEmpty()) {
+                """
+                $query
+                
+                SEP API Content:
+                $sepContent
+                """.trimIndent()
             } else {
-                null
+                query
             }
-
+        }
         return if (query == null) {
             threadRepository.findAllByUserAndDeletedAtIsNull(
-                user = user,
-                pageable = pageable,
+                    user = user,
+                    pageable = pageable,
             )
         } else {
             threadRepository.findAllByUserAndChatNameContainsAndDeletedAtIsNull(
-                user = user,
-                chatName = query,
-                pageable = pageable,
+                    user = user,
+                    chatName = query,
+                    pageable = pageable,
             )
         }
     }
