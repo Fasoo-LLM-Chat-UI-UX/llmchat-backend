@@ -37,6 +37,8 @@ import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
+
+
 //SEP API 인터페이스 정의
 interface SerpApi {
     @GET("search")
@@ -85,7 +87,7 @@ class ChatService(
 
     // 검색 요청 로직 추가
     private fun fetchSerpContent(query: String): String? {
-        val apiKey = "your_api_key"  // SERP API 키를 여기에 설정하세요
+        val apiKey = "74a16ba9925364f4c3e772325121928e2bbcc8c4a18386d1e09b27c52a671175"
         return try {
             val response = serpApi.search(query = query, apiKey = apiKey).execute()
             if (response.isSuccessful) {
