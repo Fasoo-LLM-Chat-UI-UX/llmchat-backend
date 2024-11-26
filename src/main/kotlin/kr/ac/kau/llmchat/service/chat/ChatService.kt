@@ -36,28 +36,25 @@ import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-
-
 // SERP API 인터페이스 정의
 interface SerpApi {
     @GET("search")
     fun search(
-            query: String,
-            engine: String = "google",
-            apiKey: String,
+        query: String,
+        engine: String = "google",
+        apiKey: String,
     ): Call<SerpApiResponse>
 }
 
 data class SerpApiResponse(
-        val organic_results: List<OrganicResult>
+    val organic_results: List<OrganicResult>,
 )
 
 data class OrganicResult(
-        val title: String,
-        val link: String,
-        val snippet: String?
+    val title: String,
+    val link: String,
+    val snippet: String?,
 )
-
 
 @Service
 class ChatService(
@@ -71,15 +68,16 @@ class ChatService(
     private val logger = LoggerFactory.getLogger(javaClass)
 
     // SEP API 클라이언트 설정
-    private val serpApi = Retrofit.Builder()
-            .baseUrl("https://serpapi.com/")  // SERP API 기본 URL
+    private val serpApi =
+        Retrofit.Builder()
+            .baseUrl("https://serpapi.com/") // SERP API 기본 URL
             .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
             .client(
-                    OkHttpClient.Builder()
-                            .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
-                            .connectTimeout(5, TimeUnit.SECONDS)
-                            .readTimeout(5, TimeUnit.SECONDS)
-                            .build()
+                OkHttpClient.Builder()
+                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                    .connectTimeout(5, TimeUnit.SECONDS)
+                    .readTimeout(5, TimeUnit.SECONDS)
+                    .build(),
             )
             .build()
             .create(SerpApi::class.java)
@@ -94,10 +92,10 @@ class ChatService(
                 val results = response.body()?.organic_results
                 results?.joinToString(separator = "\n") { result ->
                     """
-                Title: ${result.title}
-                Link: ${result.link}
-                Snippet: ${result.snippet.orEmpty()}
-                """.trimIndent()
+                    Title: ${result.title}
+                    Link: ${result.link}
+                    Snippet: ${result.snippet.orEmpty()}
+                    """.trimIndent()
                 }
             } else {
                 logger.error("SERP API 호출 실패: ${response.errorBody()?.string()}")
@@ -109,34 +107,32 @@ class ChatService(
         }
     }
 
-
-
-
     fun getThreads(
-            user: UserEntity,
-            pageable: Pageable,
-            query: String?,
+        user: UserEntity,
+        pageable: Pageable,
+        query: String?,
     ): Page<ThreadEntity> {
-        val enhancedQuery = query?.let {
-            val serpContent = fetchSerpContent(it)
-            if (!serpContent.isNullOrEmpty()) {
-                """
-                $query
+        val enhancedQuery =
+            query?.let {
+                val serpContent = fetchSerpContent(it)
+                if (!serpContent.isNullOrEmpty()) {
+                    """
+                    $query
 
-                SERP API Results:
-                $serpContent
-                """.trimIndent()
-            } else {
-                query
+                    SERP API Results:
+                    $serpContent
+                    """.trimIndent()
+                } else {
+                    query
+                }
             }
-        }
         return if (query == null) {
             threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = pageable)
         } else {
             threadRepository.findAllByUserAndChatNameContainsAndDeletedAtIsNull(
-                    user = user,
-                    chatName = enhancedQuery ?: query,
-                    pageable = pageable,
+                user = user,
+                chatName = enhancedQuery ?: query,
+                pageable = pageable,
             )
         }
     }
@@ -708,9 +704,4 @@ class ChatService(
             }
         }
     }
-
-
-
 }
-
-
