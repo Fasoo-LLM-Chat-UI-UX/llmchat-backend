@@ -39,13 +39,13 @@ import java.util.concurrent.TimeUnit
 
 
 
-//SEP API 인터페이스 정의
+// SERP API 인터페이스 정의
 interface SerpApi {
     @GET("search")
     fun search(
-            @Query("q") query: String,  // 검색어
-            @Query("engine") engine: String = "google",  // 검색 엔진 (기본 Google)
-            @Query("api_key") apiKey: String            // SERP API 키
+            query: String,
+            engine: String = "google",
+            apiKey: String,
     ): Call<SerpApiResponse>
 }
 
@@ -87,7 +87,8 @@ class ChatService(
 
     // 검색 요청 로직 추가
     private fun fetchSerpContent(query: String): String? {
-        val apiKey = "74a16ba9925364f4c3e772325121928e2bbcc8c4a18386d1e09b27c52a671175"
+        // 환경변수 설정
+        val apiKey = System.getenv("SERP_API_KEY") ?: "74a16ba9925364f4c3e772325121928e2bbcc8c4a18386d1e09b27c52a671175"
         return try {
             val response = serpApi.search(query = query, apiKey = apiKey).execute()
             if (response.isSuccessful) {
@@ -121,11 +122,11 @@ class ChatService(
             val serpContent = fetchSerpContent(it)
             if (!serpContent.isNullOrEmpty()) {
                 """
-            $query
-            
-            SERP API Results:
-            $serpContent
-            """.trimIndent()
+                $query
+
+                SERP API Results:
+                $serpContent
+                """.trimIndent()
             } else {
                 query
             }
