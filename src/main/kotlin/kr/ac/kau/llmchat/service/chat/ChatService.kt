@@ -32,7 +32,6 @@ import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
 import retrofit2.http.GET
-import retrofit2.http.Query
 import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.TimeUnit
