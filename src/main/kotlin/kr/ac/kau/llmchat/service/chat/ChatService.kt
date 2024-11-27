@@ -323,15 +323,15 @@ class ChatService(
             )
         messageRepository.save(assistantMessage)
 
-        emitter.send(
-            SseEmitter.event().data(
-                ChatDto.SseMessageResponse(
-                    messageId = assistantMessage.id,
-                    role = assistantMessage.role,
-                    content = "Checking RAG is needed... ",
-                ),
-            ),
-        )
+        // emitter.send(
+        //     SseEmitter.event().data(
+        //         ChatDto.SseMessageResponse(
+        //             messageId = assistantMessage.id,
+        //             role = assistantMessage.role,
+        //             content = "Checking RAG is needed... ",
+        //         ),
+        //     ),
+        // )
 
         val checkRagNeededPrompt =
             Prompt(
@@ -381,15 +381,15 @@ class ChatService(
         )
 
         if (isRagNeeded) {
-            emitter.send(
-                SseEmitter.event().data(
-                    ChatDto.SseMessageResponse(
-                        messageId = assistantMessage.id,
-                        role = assistantMessage.role,
-                        content = "Retrieving information from external sources... ",
-                    ),
-                ),
-            )
+            // emitter.send(
+            //     SseEmitter.event().data(
+            //         ChatDto.SseMessageResponse(
+            //             messageId = assistantMessage.id,
+            //             role = assistantMessage.role,
+            //             content = "Retrieving information from external sources... ",
+            //         ),
+            //     ),
+            // )
 
             // Retrieve relevant documents
             val relevantDocs =
@@ -417,11 +417,11 @@ class ChatService(
                 messages.add(0, SystemMessage(context))
             }
 
-            emitter.send(
-                SseEmitter.event().data(
-                    ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = "Done.\n\n"),
-                ),
-            )
+            // emitter.send(
+            //     SseEmitter.event().data(
+            //         ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = "Done.\n\n"),
+            //     ),
+            // )
         }
 
         val prompt = Prompt(messages)
