@@ -323,16 +323,6 @@ class ChatService(
             )
         messageRepository.save(assistantMessage)
 
-        // emitter.send(
-        //     SseEmitter.event().data(
-        //         ChatDto.SseMessageResponse(
-        //             messageId = assistantMessage.id,
-        //             role = assistantMessage.role,
-        //             content = "Checking RAG is needed... ",
-        //         ),
-        //     ),
-        // )
-
         val checkRagNeededPrompt =
             Prompt(
                 listOf(
@@ -370,27 +360,7 @@ class ChatService(
             )
         val isRagNeeded = chatModel.call(checkRagNeededPrompt).result.output.content?.contains("NO") == true
 
-        emitter.send(
-            SseEmitter.event().data(
-                ChatDto.SseMessageResponse(
-                    messageId = assistantMessage.id,
-                    role = assistantMessage.role,
-                    content = "$isRagNeeded\n\n",
-                ),
-            ),
-        )
-
         if (isRagNeeded) {
-            // emitter.send(
-            //     SseEmitter.event().data(
-            //         ChatDto.SseMessageResponse(
-            //             messageId = assistantMessage.id,
-            //             role = assistantMessage.role,
-            //             content = "Retrieving information from external sources... ",
-            //         ),
-            //     ),
-            // )
-
             // Retrieve relevant documents
             val relevantDocs =
                 documentService.searchSimilarDocuments(
@@ -409,6 +379,16 @@ class ChatService(
                             appendLine("Document ${index + 1}:")
                             appendLine(doc.content)
                             appendLine()
+
+                            emitter.send(
+                                SseEmitter.event().data(
+                                    ChatDto.SseMessageResponse(
+                                        messageId = assistantMessage.id,
+                                        role = assistantMessage.role,
+                                        content = "참고한 문서 ${index + 1} (보안 등급: ${doc.metadata["securityLevel"]}):\n${doc.content}\n---\n\n",
+                                    ),
+                                ),
+                            )
                         }
                         appendLine("Please use this information to help answer the question.")
                     }
@@ -416,12 +396,6 @@ class ChatService(
                 // Add context to system message
                 messages.add(0, SystemMessage(context))
             }
-
-            // emitter.send(
-            //     SseEmitter.event().data(
-            //         ChatDto.SseMessageResponse(messageId = assistantMessage.id, role = assistantMessage.role, content = "Done.\n\n"),
-            //     ),
-            // )
         }
 
         val prompt = Prompt(messages)
