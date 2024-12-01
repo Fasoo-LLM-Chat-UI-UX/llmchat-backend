@@ -1,6 +1,5 @@
 package kr.ac.kau.llmchat.service.chat
 
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import kr.ac.kau.llmchat.controller.chat.ChatDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.bookmark.BookmarkRepository
@@ -21,6 +20,7 @@ import org.springframework.ai.chat.messages.UserMessage
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.document.Document
 import org.springframework.ai.openai.OpenAiChatModel
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
@@ -29,32 +29,24 @@ import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import retrofit2.Call
 import retrofit2.Retrofit
-import retrofit2.converter.jackson.JacksonConverterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
 import retrofit2.http.GET
-import retrofit2.http.Query
+import retrofit2.http.Header
+import retrofit2.http.Path
 import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 // Jina API Retrofit 인터페이스 정의
 interface JinaApi {
-    @GET("search")
+    @GET("{query}")
     fun search(
-        @Query("query") query: String,
-    ): Call<JinaContent>
+        @Path("query") query: String,
+        @Header("Authorization") authorization: String,
+        @Header("X-Retain-Images") retainImages: String = "none",
+        @Header("X-Locale") locale: String = "ko-KR",
+    ): Call<String>
 }
-
-// Jina API 응답 데이터 클래스
-data class JinaResponse(
-    val title: String,
-    val url: String,
-    val description: String,
-    val markdown: String,
-)
-
-data class JinaContent(
-    val results: List<JinaResponse>,
-)
 
 @Service
 class ChatService(
@@ -64,6 +56,7 @@ class ChatService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val bookmarkRepository: BookmarkRepository,
     private val documentService: DocumentService,
+    @Value("\${llmchat.jina.api-key}") private val jinaApiKey: String,
 ) {
     private val logger: Logger = LoggerFactory.getLogger(ChatService::class.java)
 
@@ -71,21 +64,11 @@ class ChatService(
     private val jinaApi: JinaApi =
         Retrofit.Builder()
             .baseUrl("https://s.jina.ai/")
-            .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
+            .addConverterFactory(ScalarsConverterFactory.create())
             .client(
                 OkHttpClient.Builder()
-                    .addInterceptor { chain ->
-                        val request =
-                            chain.request().newBuilder()
-                                .addHeader(
-                                    "Authorization",
-                                    "Bearer jina_66f08655f19e40ffa3e87f93c348a322d0vrvOBi2j_lkIR0n7PCSbsrN8H-",
-                                ) // 인증 토큰 추가
-                                .build()
-                        chain.proceed(request)
-                    }
-                    .connectTimeout(5, TimeUnit.SECONDS)
-                    .readTimeout(5, TimeUnit.SECONDS)
+                    .connectTimeout(20, TimeUnit.SECONDS)
+                    .readTimeout(20, TimeUnit.SECONDS)
                     .build(),
             )
             .build()
@@ -94,17 +77,11 @@ class ChatService(
     // Jina API 호출 함수
     internal fun fetchJinaContent(query: String): String? {
         return try {
-            val response = jinaApi.search(query).execute()
+            val response = jinaApi.search(query, jinaApiKey).execute()
             if (response.isSuccessful) {
-                logger.info("Jina API 호출 성공")
-                response.body()?.results?.joinToString(separator = "\n") { result ->
-                    """
-                    Title: ${result.title}
-                    URL: ${result.url}
-                    Description: ${result.description}
-                    Markdown: ${result.markdown}
-                    """.trimIndent()
-                }
+                val body = response.body()
+                logger.info("Jina API 호출 성공: $body")
+                body
             } else {
                 logger.error("Jina API 호출 실패: ${response.errorBody()?.string()}")
                 null
