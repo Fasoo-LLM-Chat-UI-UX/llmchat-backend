@@ -11,8 +11,8 @@ import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
 import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
 import kr.ac.kau.llmchat.service.document.DocumentService
-import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
+import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
@@ -32,28 +32,29 @@ import retrofit2.Call
 import retrofit2.Retrofit
 import retrofit2.converter.jackson.JacksonConverterFactory
 import retrofit2.http.GET
+import retrofit2.http.Query
 import java.io.IOException
 import java.time.Instant
 import java.util.concurrent.TimeUnit
 
-// SERP API 인터페이스 정의
-interface SerpApi {
+// Jina API Retrofit 인터페이스 정의
+interface JinaApi {
     @GET("search")
     fun search(
-        query: String,
-        engine: String = "google",
-        apiKey: String,
-    ): Call<SerpApiResponse>
+        @Query("query") query: String,
+    ): Call<JinaContent>
 }
 
-data class SerpApiResponse(
-    val organic_results: List<OrganicResult>,
+// Jina API 응답 데이터 클래스
+data class JinaResponse(
+    val title: String,
+    val url: String,
+    val description: String,
+    val markdown: String,
 )
 
-data class OrganicResult(
-    val title: String,
-    val link: String,
-    val snippet: String?,
+data class JinaContent(
+    val results: List<JinaResponse>,
 )
 
 @Service
@@ -65,44 +66,52 @@ class ChatService(
     private val bookmarkRepository: BookmarkRepository,
     private val documentService: DocumentService,
 ) {
-    private val logger = LoggerFactory.getLogger(javaClass)
+    private val logger: Logger = LoggerFactory.getLogger(ChatService::class.java)
 
-    // SEP API 클라이언트 설정
-    private val serpApi =
+    // Retrofit 기반 JinaApi 설정
+    private val jinaApi: JinaApi =
         Retrofit.Builder()
-            .baseUrl("https://serpapi.com/") // SERP API 기본 URL
+            .baseUrl("https://s.jina.ai/")
             .addConverterFactory(JacksonConverterFactory.create(jacksonObjectMapper()))
             .client(
                 OkHttpClient.Builder()
-                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                    .addInterceptor { chain ->
+                        val request =
+                            chain.request().newBuilder()
+                                .addHeader(
+                                    "Authorization",
+                                    "Bearer jina_66f08655f19e40ffa3e87f93c348a322d0vrvOBi2j_lkIR0n7PCSbsrN8H-",
+                                ) // 인증 토큰 추가
+                                .build()
+                        chain.proceed(request)
+                    }
                     .connectTimeout(5, TimeUnit.SECONDS)
                     .readTimeout(5, TimeUnit.SECONDS)
                     .build(),
             )
             .build()
-            .create(SerpApi::class.java)
+            .create(JinaApi::class.java)
 
-    // 검색 요청 로직 추가
-    private fun fetchSerpContent(query: String): String? {
-        // 환경변수 설정
-        val apiKey = System.getenv("SERP_API_KEY") ?: "74a16ba9925364f4c3e772325121928e2bbcc8c4a18386d1e09b27c52a671175"
+    // Jina API 호출 함수
+    internal fun fetchJinaContent(query: String): String? {
         return try {
-            val response = serpApi.search(query = query, apiKey = apiKey).execute()
+            val response = jinaApi.search(query).execute()
             if (response.isSuccessful) {
-                val results = response.body()?.organic_results
-                results?.joinToString(separator = "\n") { result ->
+                logger.info("Jina API 호출 성공")
+                response.body()?.results?.joinToString(separator = "\n") { result ->
                     """
                     Title: ${result.title}
-                    Link: ${result.link}
-                    Snippet: ${result.snippet.orEmpty()}
+                    URL: ${result.url}
+                    Description: ${result.description}
+                    Markdown: ${result.markdown}
                     """.trimIndent()
                 }
             } else {
-                logger.error("SERP API 호출 실패: ${response.errorBody()?.string()}")
+                logger.error("Jina API 호출 실패: ${response.errorBody()?.string()}")
                 null
             }
         } catch (e: Exception) {
-            logger.error("SERP API 호출 중 예외 발생", e)
+            logger.error("Jina API 호출 중 예외 발생", e)
             null
         }
     }
@@ -114,13 +123,13 @@ class ChatService(
     ): Page<ThreadEntity> {
         val enhancedQuery =
             query?.let {
-                val serpContent = fetchSerpContent(it)
-                if (!serpContent.isNullOrEmpty()) {
+                val jinaContent = fetchJinaContent(it)
+                if (!jinaContent.isNullOrEmpty()) {
                     """
                     $query
 
-                    SERP API Results:
-                    $serpContent
+                    Jina API Results:
+                    $jinaContent
                     """.trimIndent()
                 } else {
                     query
