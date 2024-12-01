@@ -18,7 +18,6 @@ import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
-import org.springframework.ai.chat.prompt.ChatOptionsBuilder
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.document.Document
 import org.springframework.ai.openai.OpenAiChatModel
@@ -332,79 +331,40 @@ class ChatService(
             )
         messageRepository.save(assistantMessage)
 
-        val checkRagNeededPrompt =
-            Prompt(
-                listOf(
-                    SystemMessage(
-                        """
-                        **System Prompt: External Information Check**
-
-                        **Objective:** Identify if external information retrieval is necessary.
-                        
-                        **Instructions:**
-                        
-                        1. **Understand the Request:**
-                           - Carefully read the user's question to determine what information they are asking for.
-                        
-                        2. **Check Your Knowledge:**
-                           - Consider your knowledge base, which includes information up to October 2023.
-                        
-                        3. **Make a Decision:**
-                           - If the answer is within the information you know, respond with 'YES'.
-                           - If the answer requires knowledge beyond your data or needs external sources, respond with 'NO'.
-                        
-                        **Response Format:**
-                        - Provide a single response: either 'YES' or 'NO'.
-                        
-                        **Important Note:**
-                        - Remember, your knowledge includes data only up to October 2023. Use this to guide your decision.
-                        """.trimIndent(),
-                    ),
-                    UserMessage(question),
-                ),
-                ChatOptionsBuilder.builder()
-                    .withModel("gpt-4o-mini")
-                    .withMaxTokens(10)
-                    .build(),
+        // Retrieve relevant documents
+        val relevantDocs =
+            documentService.searchSimilarDocuments(
+                user = user,
+                query = question,
+                topK = 3,
             )
-        val isRagNeeded = chatModel.call(checkRagNeededPrompt).result.output.content?.contains("NO") == true
 
-        if (isRagNeeded) {
-            // Retrieve relevant documents
-            val relevantDocs =
-                documentService.searchSimilarDocuments(
-                    user = user,
-                    query = question,
-                    topK = 3,
-                )
-
-            if (relevantDocs.isNotEmpty()) {
-                // Build context from retrieved documents
-                val context =
-                    buildString {
-                        appendLine("Here's relevant information from our knowledge base:")
+        if (relevantDocs.isNotEmpty()) {
+            // Build context from retrieved documents
+            val context =
+                buildString {
+                    appendLine("Here's relevant information from our knowledge base:")
+                    appendLine()
+                    relevantDocs.forEachIndexed { index: Int, doc: Document ->
+                        appendLine("Document ${index + 1}:")
+                        appendLine(doc.content)
                         appendLine()
-                        relevantDocs.forEachIndexed { index: Int, doc: Document ->
-                            appendLine("Document ${index + 1}:")
-                            appendLine(doc.content)
-                            appendLine()
 
-                            emitter.send(
-                                SseEmitter.event().data(
-                                    ChatDto.SseMessageResponse(
-                                        messageId = assistantMessage.id,
-                                        role = assistantMessage.role,
-                                        content = "참고한 문서 ${index + 1} (보안 등급: ${doc.metadata["securityLevel"]}):\n${doc.content}\n---\n\n",
-                                    ),
+                        emitter.send(
+                            SseEmitter.event().data(
+                                ChatDto.SseMessageResponse(
+                                    messageId = assistantMessage.id,
+                                    role = assistantMessage.role,
+                                    content = "참고한 문서 ${index + 1} (보안 등급: ${doc.metadata["securityLevel"]}):\n${doc.content}\n---\n\n",
                                 ),
-                            )
-                        }
-                        appendLine("Please use this information to help answer the question.")
+                            ),
+                        )
                     }
+                    appendLine("Please use this information to help answer the question.")
+                }
 
-                // Add context to system message
-                messages.add(0, SystemMessage(context))
-            }
+            // Add context to system message
+            messages.add(0, SystemMessage(context))
         }
 
         val prompt = Prompt(messages)
