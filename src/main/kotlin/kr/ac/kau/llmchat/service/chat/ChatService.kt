@@ -17,6 +17,7 @@ import org.springframework.ai.chat.messages.AssistantMessage
 import org.springframework.ai.chat.messages.Message
 import org.springframework.ai.chat.messages.SystemMessage
 import org.springframework.ai.chat.messages.UserMessage
+import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.document.Document
 import org.springframework.ai.openai.OpenAiChatModel
@@ -67,8 +68,8 @@ class ChatService(
             .addConverterFactory(ScalarsConverterFactory.create())
             .client(
                 OkHttpClient.Builder()
-                    .connectTimeout(20, TimeUnit.SECONDS)
-                    .readTimeout(20, TimeUnit.SECONDS)
+                    .connectTimeout(60, TimeUnit.SECONDS)
+                    .readTimeout(60, TimeUnit.SECONDS)
                     .build(),
             )
             .build()
@@ -244,11 +245,10 @@ class ChatService(
         }
     }
 
-    fun sendMessage(
+    private fun validateThread(
         threadId: Long,
         user: UserEntity,
-        question: String,
-    ): SseEmitter {
+    ): ThreadEntity {
         val thread = threadRepository.findByIdOrNull(threadId)
         if (thread == null || thread.user.id != user.id) {
             throw IllegalArgumentException("Thread not found")
@@ -256,33 +256,60 @@ class ChatService(
         if (thread.deletedAt != null) {
             throw IllegalArgumentException("Thread is deleted")
         }
+        return thread
+    }
+
+    private fun createUserMessage(
+        thread: ThreadEntity,
+        content: String,
+    ): MessageEntity {
         val userMessage =
             MessageEntity(
                 thread = thread,
                 role = RoleEnum.USER,
-                content = question,
+                content = content,
                 rating = null,
             )
-        messageRepository.save(userMessage)
+        return messageRepository.save(userMessage)
+    }
 
-        var systemMessage: String? = null
-
+    private fun getSystemMessage(user: UserEntity): String? {
         val preference = userPreferenceRepository.findByUser(user)
         if (preference != null) {
-            if (preference.aboutMessageEnabled && preference.aboutUserMessage?.isNotBlank() == true) {
-                systemMessage = "Message about user: ${preference.aboutUserMessage}\n\n"
-            }
-            if (preference.aboutMessageEnabled && preference.aboutModelMessage?.isNotBlank() == true) {
-                systemMessage = "Message to model: ${preference.aboutModelMessage}"
-            }
-        }
+            val aboutUser =
+                if (preference.aboutMessageEnabled && preference.aboutUserMessage?.isNotBlank() == true) {
+                    "Message about user: ${preference.aboutUserMessage}\n\n"
+                } else {
+                    ""
+                }
 
-        val emitter = SseEmitter()
-        emitter.send(
-            SseEmitter.event().data(
-                ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = question),
-            ),
-        )
+            val aboutModel =
+                if (preference.aboutMessageEnabled && preference.aboutModelMessage?.isNotBlank() == true) {
+                    "Message to model: ${preference.aboutModelMessage}"
+                } else {
+                    ""
+                }
+
+            return (aboutUser + aboutModel).takeIf { it.isNotBlank() }
+        }
+        return null
+    }
+
+    private fun createAssistantMessage(thread: ThreadEntity): MessageEntity {
+        val assistantMessage =
+            MessageEntity(
+                thread = thread,
+                role = RoleEnum.ASSISTANT,
+                content = "",
+                rating = null,
+            )
+        return messageRepository.save(assistantMessage)
+    }
+
+    private fun getInitialMessages(
+        thread: ThreadEntity,
+        systemMessage: String?,
+    ): MutableList<Message> {
         val messages: MutableList<Message> =
             messageRepository
                 .findAllByThread(thread = thread, pageable = Pageable.unpaged())
@@ -294,30 +321,60 @@ class ChatService(
                     }
                 }
                 .toMutableList()
+
         if (systemMessage != null) {
             messages.add(0, SystemMessage(systemMessage))
         }
+        return messages
+    }
 
-        val chatMessage = StringBuilder()
-        val assistantMessage =
-            MessageEntity(
-                thread = thread,
-                role = RoleEnum.ASSISTANT,
-                content = "",
-                rating = null,
+    private fun shouldPerformWebSearch(
+        question: String,
+        relevantDocs: List<Document>,
+    ): Boolean {
+        if (relevantDocs.isNotEmpty()) {
+            return false
+        }
+
+        val checkSearchPrompt =
+            Prompt(
+                listOf(
+                    SystemMessage(
+                        """
+                        You are an AI assistant that determines if a web search would be helpful to answer a user's question.
+                        Consider these factors:
+                        1. If the question is about general knowledge or facts that might be found online
+                        2. If the question requires up-to-date information
+                        3. If the question is specific enough that a web search could yield relevant results
+                        
+                        Respond with only 'true' if a web search would be helpful, or 'false' if it wouldn't be necessary.
+                        """.trimIndent(),
+                    ),
+                    UserMessage(question),
+                ),
             )
-        messageRepository.save(assistantMessage)
 
-        // Retrieve relevant documents
+        return chatModel.call(checkSearchPrompt).result.output.content.trim().equals("true", ignoreCase = true)
+    }
+
+    private fun searchRelevantDocuments(
+        emitter: SseEmitter,
+        assistantMessage: MessageEntity,
+        user: UserEntity,
+        question: String,
+        messages: MutableList<Message>,
+    ): List<Document> {
         val relevantDocs =
             documentService.searchSimilarDocuments(
                 user = user,
                 query = question,
+                threshold = 0.9,
                 topK = 3,
             )
 
+        relevantDocs.forEach { doc -> logger.info("Similarity: ${doc.metadata["distance"]}, Content: ${doc.content}") }
+
         if (relevantDocs.isNotEmpty()) {
-            // Build context from retrieved documents
             val context =
                 buildString {
                     appendLine("Here's relevant information from our knowledge base:")
@@ -339,43 +396,185 @@ class ChatService(
                     }
                     appendLine("Please use this information to help answer the question.")
                 }
-
-            // Add context to system message
             messages.add(0, SystemMessage(context))
         }
+        return relevantDocs
+    }
 
-        val prompt = Prompt(messages)
-        val responseFlux = chatModel.stream(prompt)
+    private fun performWebSearch(
+        emitter: SseEmitter,
+        assistantMessage: MessageEntity,
+        question: String,
+        messages: MutableList<Message>,
+    ) {
+        try {
+            emitter.send(
+                SseEmitter.event().data(
+                    ChatDto.SseMessageResponse(
+                        messageId = assistantMessage.id,
+                        role = assistantMessage.role,
+                        content = "문서를 찾을 수 없어 웹 검색을 시도합니다...",
+                    ),
+                ),
+            )
 
-        responseFlux.subscribe(
-            { chatResponse ->
-                try {
-                    val content: String? = chatResponse.result.output.content
-                    if (content?.isNotEmpty() == true) {
-                        chatMessage.append(content)
-                        emitter.send(
-                            SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(
-                                    messageId = assistantMessage.id,
-                                    role = assistantMessage.role,
-                                    content = content,
-                                ),
+            val suggestedQuery =
+                chatModel.call(
+                    Prompt(
+                        listOf(
+                            SystemMessage(
+                                "You are a search query suggestion assistant. " +
+                                    "Given a user's question, suggest one alternative search query" +
+                                    " that might help find relevant information. " +
+                                    "Respond with only the search queries, in one line, without any additional text or explanation.",
                             ),
-                        )
+                            UserMessage(question),
+                        ),
+                    ),
+                ).result.output.content
+
+            emitter.send(
+                SseEmitter.event().data(
+                    ChatDto.SseMessageResponse(
+                        messageId = assistantMessage.id,
+                        role = assistantMessage.role,
+                        content = "검색어 '$suggestedQuery'로 검색 중...",
+                    ),
+                ),
+            )
+
+            val webResults = fetchJinaContent(suggestedQuery)
+            if (webResults?.isNotEmpty() == true) {
+                val webContext =
+                    buildString {
+                        appendLine("Here's relevant information from web search:")
+                        appendLine()
+                        webResults.forEachIndexed { index, result ->
+                            appendLine("Web Result ${index + 1}:")
+                            appendLine(result)
+                            appendLine()
+                        }
+                        appendLine("Please use this information to help answer the question.")
                     }
-                } catch (e: IOException) {
-                    emitter.completeWithError(e)
-                }
-            },
-            { error ->
-                emitter.completeWithError(error)
-            },
-            {
-                emitter.complete()
-                assistantMessage.content = chatMessage.toString()
-                messageRepository.save(assistantMessage)
-            },
-        )
+                messages.add(0, SystemMessage(webContext))
+
+                emitter.send(
+                    SseEmitter.event().data(
+                        ChatDto.SseMessageResponse(
+                            messageId = assistantMessage.id,
+                            role = assistantMessage.role,
+                            content = "웹 검색이 완료되었습니다.",
+                        ),
+                    ),
+                )
+            } else {
+                emitter.send(
+                    SseEmitter.event().data(
+                        ChatDto.SseMessageResponse(
+                            messageId = assistantMessage.id,
+                            role = assistantMessage.role,
+                            content = "관련된 정보를 찾지 못했습니다. 일반적인 답변을 제공합니다.",
+                        ),
+                    ),
+                )
+            }
+        } catch (e: Exception) {
+            logger.error("웹 검색 중 오류 발생", e)
+            emitter.send(
+                SseEmitter.event().data(
+                    ChatDto.SseMessageResponse(
+                        messageId = assistantMessage.id,
+                        role = assistantMessage.role,
+                        content = "웹 검색 중 오류가 발생했습니다. 일반적인 답변을 제공합니다.",
+                    ),
+                ),
+            )
+        }
+    }
+
+    private fun handleChatResponse(
+        emitter: SseEmitter,
+        assistantMessage: MessageEntity,
+        chatMessage: StringBuilder,
+        chatResponse: ChatResponse,
+    ) {
+        try {
+            val content: String? = chatResponse.result.output.content
+            if (content?.isNotEmpty() == true) {
+                chatMessage.append(content)
+                emitter.send(
+                    SseEmitter.event().data(
+                        ChatDto.SseMessageResponse(
+                            messageId = assistantMessage.id,
+                            role = assistantMessage.role,
+                            content = content,
+                        ),
+                    ),
+                )
+            }
+        } catch (e: IOException) {
+            emitter.completeWithError(e)
+        }
+    }
+
+    fun sendMessage(
+        threadId: Long,
+        user: UserEntity,
+        question: String,
+    ): SseEmitter {
+        val thread = validateThread(threadId, user)
+        val userMessage = createUserMessage(thread, question)
+        val systemMessage = getSystemMessage(user)
+
+        val emitter = SseEmitter()
+        val messages = getInitialMessages(thread, systemMessage)
+        val assistantMessage = createAssistantMessage(thread)
+        val chatMessage = StringBuilder()
+
+        try {
+            emitter.send(
+                SseEmitter.event().data(
+                    ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = question),
+                ),
+            )
+
+            // Search for relevant documents and perform web search if needed
+            val relevantDocs = searchRelevantDocuments(emitter, assistantMessage, user, question, messages)
+            if (shouldPerformWebSearch(question, relevantDocs)) {
+                performWebSearch(emitter, assistantMessage, question, messages)
+            }
+
+            val prompt = Prompt(messages)
+            val responseFlux = chatModel.stream(prompt)
+
+            responseFlux.subscribe(
+                { chatResponse ->
+                    handleChatResponse(emitter, assistantMessage, chatMessage, chatResponse)
+                },
+                { error ->
+                    logger.error("채팅 응답 처리 중 오류 발생", error)
+                    emitter.send(
+                        SseEmitter.event().data(
+                            ChatDto.SseMessageResponse(
+                                messageId = assistantMessage.id,
+                                role = assistantMessage.role,
+                                content = "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.",
+                            ),
+                        ),
+                    )
+                    emitter.completeWithError(error)
+                },
+                {
+                    emitter.complete()
+                    assistantMessage.content = chatMessage.toString()
+                    messageRepository.save(assistantMessage)
+                },
+            )
+        } catch (e: Exception) {
+            logger.error("메시지 처리 중 오류 발생", e)
+            emitter.completeWithError(e)
+            throw e
+        }
 
         return emitter
     }
@@ -445,14 +644,7 @@ class ChatService(
         user: UserEntity,
         question: String,
     ): SseEmitter {
-        val thread = threadRepository.findByIdOrNull(threadId)
-        if (thread == null || thread.user.id != user.id) {
-            throw IllegalArgumentException("Thread not found")
-        }
-        if (thread.deletedAt != null) {
-            throw IllegalArgumentException("Thread is deleted")
-        }
-
+        val thread = validateThread(threadId, user)
         val userMessage = messageRepository.findByIdOrNull(messageId)
         if (userMessage == null || userMessage.thread.id != threadId || userMessage.role != RoleEnum.USER) {
             throw IllegalArgumentException("Message not found or not editable")

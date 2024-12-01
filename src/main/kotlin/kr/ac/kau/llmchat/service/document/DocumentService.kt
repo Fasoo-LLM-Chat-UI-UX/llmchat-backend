@@ -53,6 +53,7 @@ class DocumentService(
     fun searchSimilarDocuments(
         user: UserEntity,
         query: String,
+        threshold: Double = 0.5,
         topK: Int = 5,
     ): List<Document> {
         val userPreference = userPreferenceRepository.findByUser(user = user)
@@ -60,6 +61,7 @@ class DocumentService(
         return vectorStore.similaritySearch(
             SearchRequest.defaults()
                 .withQuery(query)
+                .withSimilarityThreshold(threshold)
                 .withTopK(topK)
                 .withFilterExpression(
                     when (userPreference?.securityLevel) {
