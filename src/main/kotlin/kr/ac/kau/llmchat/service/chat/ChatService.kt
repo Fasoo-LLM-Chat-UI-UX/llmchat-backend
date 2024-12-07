@@ -15,6 +15,9 @@ import okhttp3.ConnectionPool
 import okhttp3.OkHttpClient
 import okhttp3.ResponseBody
 import okhttp3.logging.HttpLoggingInterceptor
+import org.apache.commons.exec.CommandLine
+import org.apache.commons.exec.DefaultExecutor
+import org.apache.commons.exec.PumpStreamHandler
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.messages.AssistantMessage
@@ -41,6 +44,9 @@ import retrofit2.http.GET
 import retrofit2.http.Header
 import retrofit2.http.Query
 import retrofit2.http.Url
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
@@ -89,6 +95,7 @@ class ChatService(
     private val objectMapper: ObjectMapper,
     @Value("\${llmchat.search.naver-client-id}") private val naverClientId: String,
     @Value("\${llmchat.search.naver-client-secret}") private val naverClientSecret: String,
+    @Value("\${llmchat.search.readability-cli-path}") private val readabilityCliPath: String,
 ) {
     private val logger: Logger = LoggerFactory.getLogger(ChatService::class.java)
 
@@ -451,7 +458,7 @@ class ChatService(
         var prompt = "Here's the top news articles related to your question:\n"
         for (news in topNews) {
             prompt += "Title: ${news.title}\n"
-            prompt += "Content: ${scrapNewsContent(news.link).take(1000)}\n\n"
+            prompt += "Content: ${scrapNewsContent(news.link).take(10000)}\n\n"
         }
         prompt += "Please refer to these articles to assist in answering the question."
         prompt += "If referenced, include the specific details at the end of your response."
@@ -462,9 +469,25 @@ class ChatService(
     private fun scrapNewsContent(url: String): String {
         val html = apiClient.fetchHtml(url).execute().body()!!.string()
 
-        // TODO: Implement HTML parsing to extract news content
+        val cmd = CommandLine("node")
+        cmd.addArgument("index.js")
 
-        return html
+        ByteArrayInputStream(html.toByteArray()).use { stdin ->
+            ByteArrayOutputStream().use { stdout ->
+                val exec =
+                    DefaultExecutor.builder()
+                        .setWorkingDirectory(File(readabilityCliPath))
+                        .setExecuteStreamHandler(PumpStreamHandler(stdout, stdout, stdin))
+                        .get()
+
+                val exitCode = exec.execute(cmd)
+                if (exitCode != 0) {
+                    throw IOException("Failed to execute Readability CLI - exit code: $exitCode, stdout: $stdout")
+                }
+
+                return stdout.toString()
+            }
+        }
     }
 
     private fun handleChatResponse(

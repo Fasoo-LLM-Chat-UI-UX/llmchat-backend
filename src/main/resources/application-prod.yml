@@ -1,2 +1,6 @@
 server:
   forward-headers-strategy: framework
+
+llmchat:
+  search:
+    readability-cli-path: /home/ubuntu/workspaces/llmchat-backend-source/readability

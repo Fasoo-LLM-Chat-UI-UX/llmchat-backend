@@ -15,3 +15,4 @@ llmchat:
   search:
     naver-client-id: dummy-client-id
     naver-client-secret: dummy-client-secret
+    readability-cli-path: dummy-readability-cli-path

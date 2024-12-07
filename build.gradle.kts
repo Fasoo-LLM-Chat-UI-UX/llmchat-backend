@@ -41,6 +41,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.11.0")
     implementation("org.zalando:problem-spring-web-starter:0.29.1")
     implementation("org.springframework.ai:spring-ai-chroma-store-spring-boot-starter")
+    implementation("org.apache.commons:commons-exec:1.4.0")
     runtimeOnly("com.mysql:mysql-connector-j")
     runtimeOnly("io.jsonwebtoken:jjwt-impl:0.12.5")
     runtimeOnly("io.jsonwebtoken:jjwt-jackson:0.12.5")
