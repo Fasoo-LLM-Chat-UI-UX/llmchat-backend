@@ -457,8 +457,16 @@ class ChatService(
 
         var prompt = "Here's the top news articles related to your question:\n"
         for (news in topNews) {
+            val content =
+                try {
+                    scrapNewsContent(news.link).take(10000)
+                } catch (e: Exception) {
+                    logger.warn("Failed to fetch news content", e)
+                    continue
+                }
+
             prompt += "Title: ${news.title}\n"
-            prompt += "Content: ${scrapNewsContent(news.link).take(10000)}\n\n"
+            prompt += "Content: ${content.take(10000)}\n\n"
         }
         prompt += "Please refer to these articles to assist in answering the question."
         prompt += "If referenced, include the specific details at the end of your response."
