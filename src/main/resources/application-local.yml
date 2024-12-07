@@ -12,3 +12,6 @@ llmchat:
     naver:
       client-id: dummy-client-id
       client-secret: dummy-client-secret
+  search:
+    naver-client-id: dummy-client-id
+    naver-client-secret: dummy-client-secret

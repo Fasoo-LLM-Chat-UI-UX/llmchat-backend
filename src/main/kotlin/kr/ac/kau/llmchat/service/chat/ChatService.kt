@@ -1,5 +1,6 @@
 package kr.ac.kau.llmchat.service.chat
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import kr.ac.kau.llmchat.controller.chat.ChatDto
 import kr.ac.kau.llmchat.domain.auth.UserEntity
 import kr.ac.kau.llmchat.domain.bookmark.BookmarkRepository
@@ -10,6 +11,10 @@ import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
 import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
 import kr.ac.kau.llmchat.service.document.DocumentService
+import okhttp3.ConnectionPool
+import okhttp3.OkHttpClient
+import okhttp3.ResponseBody
+import okhttp3.logging.HttpLoggingInterceptor
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.messages.AssistantMessage
@@ -20,6 +25,7 @@ import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.document.Document
 import org.springframework.ai.openai.OpenAiChatModel
+import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
@@ -27,10 +33,49 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
+import retrofit2.Call
+import retrofit2.Retrofit
+import retrofit2.converter.jackson.JacksonConverterFactory
+import retrofit2.converter.scalars.ScalarsConverterFactory
+import retrofit2.http.GET
+import retrofit2.http.Header
+import retrofit2.http.Query
+import retrofit2.http.Url
 import java.io.IOException
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.TimeUnit
+
+data class NewsSearchResponse(
+    val lastBuildDate: String,
+    val total: Int,
+    val start: Int,
+    val display: Int,
+    val items: List<NewsItem>,
+) {
+    data class NewsItem(
+        val title: String,
+        val originallink: String,
+        val link: String,
+        val description: String,
+        val pubDate: String,
+    )
+}
+
+interface NaverSearchApi {
+    @GET("v1/search/news.json")
+    fun searchNews(
+        @Query("query") query: String,
+        @Header("X-Naver-Client-Id") clientId: String,
+        @Header("X-Naver-Client-Secret") clientSecret: String,
+    ): Call<NewsSearchResponse>
+
+    @GET
+    fun fetchHtml(
+        @Url url: String,
+    ): Call<ResponseBody>
+}
 
 @Service
 class ChatService(
@@ -41,8 +86,32 @@ class ChatService(
     private val bookmarkRepository: BookmarkRepository,
     private val documentService: DocumentService,
     private val threadPoolTaskExecutor: ThreadPoolTaskExecutor,
+    private val objectMapper: ObjectMapper,
+    @Value("\${llmchat.search.naver-client-id}") private val naverClientId: String,
+    @Value("\${llmchat.search.naver-client-secret}") private val naverClientSecret: String,
 ) {
     private val logger: Logger = LoggerFactory.getLogger(ChatService::class.java)
+
+    private val apiClient =
+        Retrofit.Builder()
+            .baseUrl("https://openapi.naver.com/")
+            .addConverterFactory(JacksonConverterFactory.create(objectMapper))
+            .addConverterFactory(ScalarsConverterFactory.create())
+            .client(
+                OkHttpClient
+                    .Builder()
+                    .connectionPool(ConnectionPool(5, 1, TimeUnit.MINUTES))
+                    .connectTimeout(10, TimeUnit.SECONDS)
+                    .readTimeout(10, TimeUnit.SECONDS)
+                    .addInterceptor(
+                        HttpLoggingInterceptor().apply {
+                            level = HttpLoggingInterceptor.Level.BASIC
+                        },
+                    )
+                    .build(),
+            )
+            .build()
+            .create(NaverSearchApi::class.java)
 
     fun getThreads(
         user: UserEntity,
@@ -367,7 +436,35 @@ class ChatService(
             ),
         )
 
-        // TODO: Implement web search
+        val response =
+            apiClient.searchNews(
+                query = webSearchQuery,
+                clientId = naverClientId,
+                clientSecret = naverClientSecret,
+            ).execute()
+
+        val topNews = response.body()?.items?.take(3)
+        if (topNews.isNullOrEmpty()) {
+            return
+        }
+
+        var prompt = "Here's the top news articles related to your question:\n"
+        for (news in topNews) {
+            prompt += "Title: ${news.title}\n"
+            prompt += "Content: ${scrapNewsContent(news.link).take(1000)}\n\n"
+        }
+        prompt += "Please refer to these articles to assist in answering the question."
+        prompt += "If referenced, include the specific details at the end of your response."
+        prompt += "For example:\n\n"
+        prompt += "위 답변은 다음의 뉴스 기사를 참고했습니다:\n- \"참고한 문장 혹은 문단 1 (출처: 뉴스 제목 1).\"\n- \"참고한 문장 혹은 문단 2 (출처: 뉴스 제목 2).\"\n"
+    }
+
+    private fun scrapNewsContent(url: String): String {
+        val html = apiClient.fetchHtml(url).execute().body()!!.string()
+
+        // TODO: Implement HTML parsing to extract news content
+
+        return html
     }
 
     private fun handleChatResponse(
