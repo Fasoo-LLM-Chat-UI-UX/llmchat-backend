@@ -10,7 +10,6 @@ import kr.ac.kau.llmchat.domain.chat.ThreadEntity
 import kr.ac.kau.llmchat.domain.chat.ThreadRepository
 import kr.ac.kau.llmchat.domain.user.UserPreferenceRepository
 import kr.ac.kau.llmchat.service.document.DocumentService
-import okhttp3.OkHttpClient
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.springframework.ai.chat.messages.AssistantMessage
@@ -21,33 +20,14 @@ import org.springframework.ai.chat.model.ChatResponse
 import org.springframework.ai.chat.prompt.Prompt
 import org.springframework.ai.document.Document
 import org.springframework.ai.openai.OpenAiChatModel
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
-import retrofit2.Call
-import retrofit2.Retrofit
-import retrofit2.converter.scalars.ScalarsConverterFactory
-import retrofit2.http.GET
-import retrofit2.http.Header
-import retrofit2.http.Path
 import java.io.IOException
 import java.time.Instant
-import java.util.concurrent.TimeUnit
-
-// Jina API Retrofit 인터페이스 정의
-interface JinaApi {
-    @GET("{query}")
-    fun search(
-        @Path("query") query: String,
-        @Header("Authorization") authorization: String,
-        @Header("X-Retain-Images") retainImages: String = "none",
-        @Header("X-Locale") locale: String = "ko-KR",
-    ): Call<String>
-}
 
 @Service
 class ChatService(
@@ -57,67 +37,23 @@ class ChatService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val bookmarkRepository: BookmarkRepository,
     private val documentService: DocumentService,
-    @Value("\${llmchat.jina.api-key}") private val jinaApiKey: String,
 ) {
     private val logger: Logger = LoggerFactory.getLogger(ChatService::class.java)
-
-    // Retrofit 기반 JinaApi 설정
-    private val jinaApi: JinaApi =
-        Retrofit.Builder()
-            .baseUrl("https://s.jina.ai/")
-            .addConverterFactory(ScalarsConverterFactory.create())
-            .client(
-                OkHttpClient.Builder()
-                    .connectTimeout(60, TimeUnit.SECONDS)
-                    .readTimeout(60, TimeUnit.SECONDS)
-                    .build(),
-            )
-            .build()
-            .create(JinaApi::class.java)
-
-    // Jina API 호출 함수
-    internal fun fetchJinaContent(query: String): String? {
-        return try {
-            val response = jinaApi.search(query, jinaApiKey).execute()
-            if (response.isSuccessful) {
-                val body = response.body()
-                logger.info("Jina API 호출 성공: $body")
-                body
-            } else {
-                logger.error("Jina API 호출 실패: ${response.errorBody()?.string()}")
-                null
-            }
-        } catch (e: Exception) {
-            logger.error("Jina API 호출 중 예외 발생", e)
-            null
-        }
-    }
 
     fun getThreads(
         user: UserEntity,
         pageable: Pageable,
         query: String?,
     ): Page<ThreadEntity> {
-        val enhancedQuery =
-            query?.let {
-                val jinaContent = fetchJinaContent(it)
-                if (!jinaContent.isNullOrEmpty()) {
-                    """
-                    $query
-
-                    Jina API Results:
-                    $jinaContent
-                    """.trimIndent()
-                } else {
-                    query
-                }
-            }
         return if (query == null) {
-            threadRepository.findAllByUserAndDeletedAtIsNull(user = user, pageable = pageable)
+            threadRepository.findAllByUserAndDeletedAtIsNull(
+                user = user,
+                pageable = pageable,
+            )
         } else {
             threadRepository.findAllByUserAndChatNameContainsAndDeletedAtIsNull(
                 user = user,
-                chatName = enhancedQuery ?: query,
+                chatName = query,
                 pageable = pageable,
             )
         }
@@ -180,7 +116,11 @@ class ChatService(
                         chatMessage.append(content)
                         emitter.send(
                             SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(messageId = -1, role = RoleEnum.ASSISTANT, content = content),
+                                ChatDto.SseMessageResponse(
+                                    messageId = -1,
+                                    role = RoleEnum.ASSISTANT,
+                                    content = content,
+                                ),
                             ),
                         )
                     }
@@ -368,11 +308,9 @@ class ChatService(
             documentService.searchSimilarDocuments(
                 user = user,
                 query = question,
-                threshold = 0.9,
-                topK = 3,
+                threshold = 0.5,
+                topK = 5,
             )
-
-        relevantDocs.forEach { doc -> logger.info("Similarity: ${doc.metadata["distance"]}, Content: ${doc.content}") }
 
         if (relevantDocs.isNotEmpty()) {
             val context =
@@ -396,7 +334,7 @@ class ChatService(
                     }
                     appendLine("Please use this information to help answer the question.")
                 }
-            messages.add(0, SystemMessage(context))
+            messages.add(SystemMessage(context))
         }
         return relevantDocs
     }
@@ -407,89 +345,7 @@ class ChatService(
         question: String,
         messages: MutableList<Message>,
     ) {
-        try {
-            emitter.send(
-                SseEmitter.event().data(
-                    ChatDto.SseMessageResponse(
-                        messageId = assistantMessage.id,
-                        role = assistantMessage.role,
-                        content = "문서를 찾을 수 없어 웹 검색을 시도합니다...",
-                    ),
-                ),
-            )
-
-            val suggestedQuery =
-                chatModel.call(
-                    Prompt(
-                        listOf(
-                            SystemMessage(
-                                "You are a search query suggestion assistant. " +
-                                    "Given a user's question, suggest one alternative search query" +
-                                    " that might help find relevant information. " +
-                                    "Respond with only the search queries, in one line, without any additional text or explanation.",
-                            ),
-                            UserMessage(question),
-                        ),
-                    ),
-                ).result.output.content
-
-            emitter.send(
-                SseEmitter.event().data(
-                    ChatDto.SseMessageResponse(
-                        messageId = assistantMessage.id,
-                        role = assistantMessage.role,
-                        content = "검색어 '$suggestedQuery'로 검색 중...",
-                    ),
-                ),
-            )
-
-            val webResults = fetchJinaContent(suggestedQuery)
-            if (webResults?.isNotEmpty() == true) {
-                val webContext =
-                    buildString {
-                        appendLine("Here's relevant information from web search:")
-                        appendLine()
-                        webResults.forEachIndexed { index, result ->
-                            appendLine("Web Result ${index + 1}:")
-                            appendLine(result)
-                            appendLine()
-                        }
-                        appendLine("Please use this information to help answer the question.")
-                    }
-                messages.add(0, SystemMessage(webContext))
-
-                emitter.send(
-                    SseEmitter.event().data(
-                        ChatDto.SseMessageResponse(
-                            messageId = assistantMessage.id,
-                            role = assistantMessage.role,
-                            content = "웹 검색이 완료되었습니다.",
-                        ),
-                    ),
-                )
-            } else {
-                emitter.send(
-                    SseEmitter.event().data(
-                        ChatDto.SseMessageResponse(
-                            messageId = assistantMessage.id,
-                            role = assistantMessage.role,
-                            content = "관련된 정보를 찾지 못했습니다. 일반적인 답변을 제공합니다.",
-                        ),
-                    ),
-                )
-            }
-        } catch (e: Exception) {
-            logger.error("웹 검색 중 오류 발생", e)
-            emitter.send(
-                SseEmitter.event().data(
-                    ChatDto.SseMessageResponse(
-                        messageId = assistantMessage.id,
-                        role = assistantMessage.role,
-                        content = "웹 검색 중 오류가 발생했습니다. 일반적인 답변을 제공합니다.",
-                    ),
-                ),
-            )
-        }
+        // TODO: Implement web search
     }
 
     private fun handleChatResponse(
@@ -522,13 +378,13 @@ class ChatService(
         user: UserEntity,
         question: String,
     ): SseEmitter {
-        val thread = validateThread(threadId, user)
-        val userMessage = createUserMessage(thread, question)
-        val systemMessage = getSystemMessage(user)
+        val thread: ThreadEntity = validateThread(threadId, user)
+        val userMessage: MessageEntity = createUserMessage(thread, question)
+        val systemMessage: String? = getSystemMessage(user)
 
         val emitter = SseEmitter()
-        val messages = getInitialMessages(thread, systemMessage)
-        val assistantMessage = createAssistantMessage(thread)
+        val messages: MutableList<Message> = getInitialMessages(thread, systemMessage)
+        val assistantMessage: MessageEntity = createAssistantMessage(thread)
         val chatMessage = StringBuilder()
 
         try {

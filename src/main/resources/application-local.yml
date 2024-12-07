@@ -12,5 +12,3 @@ llmchat:
     naver:
       client-id: dummy-client-id
       client-secret: dummy-client-secret
-  jina:
-    api-key: dummy-api
