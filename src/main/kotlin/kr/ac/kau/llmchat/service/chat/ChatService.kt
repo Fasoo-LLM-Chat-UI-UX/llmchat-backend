@@ -266,10 +266,10 @@ class ChatService(
         return messages
     }
 
-    private fun shouldPerformWebSearch(
+    private fun determineWebSearchQuery(
         question: String,
         relevantDocs: List<Document>,
-    ): Boolean {
+    ): String? {
         val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("Asia/Seoul"))
         val todayDate = formatter.format(Instant.now())
 
@@ -293,7 +293,7 @@ class ChatService(
                         Relevant documents are:
                         ${if (relevantDocs.isEmpty()) "(No relevant documents found)" else docSummary}
                         
-                        Respond with 'true' if a web search is needed, otherwise 'false'.
+                        Respond with 'true,<web search query>' if a web search is needed, otherwise 'false'.
                         """.trimIndent(),
                     ),
                     UserMessage(question),
@@ -301,10 +301,16 @@ class ChatService(
             )
 
         return try {
-            chatModel.call(checkSearchPrompt).result.output.content.trim().equals("true", ignoreCase = true)
+            val content: String = chatModel.call(checkSearchPrompt).result.output.content
+            val parts = content.split(",")
+            if (parts.size == 2 && parts[0].trim().toBoolean()) {
+                parts[1].trim()
+            } else {
+                null
+            }
         } catch (e: Exception) {
             logger.error("Error while determining web search need", e)
-            false
+            null
         }
     }
 
@@ -345,11 +351,22 @@ class ChatService(
     }
 
     private fun performWebSearch(
+        webSearchQuery: String,
         emitter: SseEmitter,
         assistantMessage: MessageEntity,
         question: String,
         messages: MutableList<Message>,
     ) {
+        emitter.send(
+            SseEmitter.event().data(
+                ChatDto.SseMessageResponse(
+                    messageId = assistantMessage.id,
+                    role = assistantMessage.role,
+                    content = "\n[Debug] Web search query: $webSearchQuery\n",
+                ),
+            ),
+        )
+
         // TODO: Implement web search
     }
 
@@ -402,8 +419,9 @@ class ChatService(
 
                 // Search for relevant documents and perform web search if needed
                 val relevantDocs = searchRelevantDocuments(user, question, messages)
-                if (shouldPerformWebSearch(question, relevantDocs)) {
-                    performWebSearch(emitter, assistantMessage, question, messages)
+                val webSearchQuery = determineWebSearchQuery(question, relevantDocs)
+                if (webSearchQuery != null) {
+                    performWebSearch(webSearchQuery, emitter, assistantMessage, question, messages)
                 }
 
                 val prompt = Prompt(messages)
