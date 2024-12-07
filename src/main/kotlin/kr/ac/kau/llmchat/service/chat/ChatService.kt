@@ -270,34 +270,42 @@ class ChatService(
         question: String,
         relevantDocs: List<Document>,
     ): Boolean {
-        val formatter =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                .withZone(ZoneId.of("Asia/Seoul"))
+        val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd").withZone(ZoneId.of("Asia/Seoul"))
         val todayDate = formatter.format(Instant.now())
+
+        // 문서 내용 요약
+        val docSummary =
+            relevantDocs.joinToString(",\n") {
+                "<Document start>\n${it.content.take(500)}...\n<Document end>"
+            }
 
         val checkSearchPrompt =
             Prompt(
                 listOf(
                     SystemMessage(
                         """
-                        You are an AI assistant that determines if a web search would be helpful to answer a user's question.
-                        Consider these factors:
-                        1. Today's date is $todayDate, and your knowledge is 2023-10
-                        2. If the question is about general knowledge or facts that might be found online
-                        3. If the question requires up-to-date information
-                        4. If the question is specific enough that a web search could yield relevant results
-                        5. Relevant documents have been searched and the results are displayed below:
-                        ${if (relevantDocs.isEmpty()) "(empty)" else ""}
-                        ${relevantDocs.joinToString(",\n") { "<Document start>\n${it.content}\n<Document end>" }}
+                        You are an AI assistant tasked with deciding if a web search is needed to answer the user's question.
+                        Today's date is $todayDate. Consider:
+                        1. Your knowledge is up to date as of October 2023.
+                        2. Does the question require up-to-date information?
+                        3. Could general knowledge or facts online provide a sufficient answer?
+                        4. Is the question specific enough to yield useful search results?
+                        Relevant documents are:
+                        ${if (relevantDocs.isEmpty()) "(No relevant documents found)" else docSummary}
                         
-                        Respond with only 'true' if a web search would be helpful, or 'false' if it wouldn't be necessary.
+                        Respond with 'true' if a web search is needed, otherwise 'false'.
                         """.trimIndent(),
                     ),
                     UserMessage(question),
                 ),
             )
 
-        return chatModel.call(checkSearchPrompt).result.output.content.trim().equals("true", ignoreCase = true)
+        return try {
+            chatModel.call(checkSearchPrompt).result.output.content.trim().equals("true", ignoreCase = true)
+        } catch (e: Exception) {
+            logger.error("Error while determining web search need", e)
+            false
+        }
     }
 
     private fun searchRelevantDocuments(
