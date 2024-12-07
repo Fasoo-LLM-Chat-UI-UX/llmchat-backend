@@ -1,0 +1,11 @@
+{
+  "name": "readability-cli",
+  "version": "1.0.0",
+  "description": "CLI tool to extract clean text from HTML using Readability.js",
+  "main": "index.js",
+  "type": "module",
+  "dependencies": {
+    "@mozilla/readability": "^0.4.4",
+    "jsdom": "^22.1.0"
+  }
+}
