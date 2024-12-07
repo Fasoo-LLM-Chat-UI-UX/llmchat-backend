@@ -331,7 +331,7 @@ class ChatService(
                             "include the specific details at the end of your response. For example:",
                     )
                     appendLine()
-                    appendLine("위 답변은 다음의 내부 문서에서 참고해 답변했습니다:\n- \"참고한 문장 1.\"\n- \"참고한 문장 2.\"")
+                    appendLine("위 답변은 다음의 내부 문서를 참고했습니다:\n- \"참고한 문장 1.\"\n- \"참고한 문장 2.\"")
                 }
             messages.add(SystemMessage(context))
         }
