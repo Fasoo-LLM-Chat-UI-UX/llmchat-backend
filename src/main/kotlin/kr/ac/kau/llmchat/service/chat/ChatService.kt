@@ -480,7 +480,12 @@ class ChatService(
                         .setExecuteStreamHandler(PumpStreamHandler(stdout, stdout, stdin))
                         .get()
 
-                val exitCode = exec.execute(cmd)
+                val exitCode =
+                    try {
+                        exec.execute(cmd)
+                    } catch (e: Exception) {
+                        throw IOException("Failed to execute Readability CLI - stdout: $stdout", e)
+                    }
                 if (exitCode != 0) {
                     throw IOException("Failed to execute Readability CLI - exit code: $exitCode, stdout: $stdout")
                 }
