@@ -309,8 +309,6 @@ class ChatService(
     }
 
     private fun searchRelevantDocuments(
-        emitter: SseEmitter,
-        assistantMessage: MessageEntity,
         user: UserEntity,
         question: String,
         messages: MutableList<Message>,
@@ -403,7 +401,7 @@ class ChatService(
                 )
 
                 // Search for relevant documents and perform web search if needed
-                val relevantDocs = searchRelevantDocuments(emitter, assistantMessage, user, question, messages)
+                val relevantDocs = searchRelevantDocuments(user, question, messages)
                 if (shouldPerformWebSearch(question, relevantDocs)) {
                     performWebSearch(emitter, assistantMessage, question, messages)
                 }
