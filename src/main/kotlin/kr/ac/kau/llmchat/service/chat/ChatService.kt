@@ -321,21 +321,17 @@ class ChatService(
                     appendLine("Here's relevant information from our knowledge base:")
                     appendLine()
                     relevantDocs.forEachIndexed { index: Int, doc: Document ->
-                        appendLine("Document ${index + 1}:")
+                        appendLine("<Document start>")
                         appendLine(doc.content)
+                        appendLine("<Document end>")
                         appendLine()
-
-                        emitter.send(
-                            SseEmitter.event().data(
-                                ChatDto.SseMessageResponse(
-                                    messageId = assistantMessage.id,
-                                    role = assistantMessage.role,
-                                    content = "참고한 문서 ${index + 1} (보안 등급: ${doc.metadata["securityLevel"]}):\n${doc.content}\n---\n\n",
-                                ),
-                            ),
-                        )
                     }
-                    appendLine("Please use this information to help answer the question.")
+                    appendLine(
+                        "Please refer to this information to assist in answering the question, and if referenced, " +
+                            "include the specific details at the end of your response. For example:",
+                    )
+                    appendLine()
+                    appendLine("위 답변은 내부 문서에서 참고하여 답변하였습니다:\n- 참고한 문장 1.\n- 참고한 문장 2.")
                 }
             messages.add(SystemMessage(context))
         }
