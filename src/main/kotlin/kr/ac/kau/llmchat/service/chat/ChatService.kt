@@ -23,11 +23,14 @@ import org.springframework.ai.openai.OpenAiChatModel
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 import org.springframework.data.repository.findByIdOrNull
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter
 import java.io.IOException
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @Service
 class ChatService(
@@ -37,6 +40,7 @@ class ChatService(
     private val userPreferenceRepository: UserPreferenceRepository,
     private val bookmarkRepository: BookmarkRepository,
     private val documentService: DocumentService,
+    private val threadPoolTaskExecutor: ThreadPoolTaskExecutor,
 ) {
     private val logger: Logger = LoggerFactory.getLogger(ChatService::class.java)
 
@@ -146,13 +150,7 @@ class ChatService(
         user: UserEntity,
         dto: ChatDto.ManualRenameThreadRequest,
     ) {
-        val thread = threadRepository.findByIdOrNull(threadId)
-        if (thread == null || thread.user.id != user.id) {
-            throw IllegalArgumentException("Thread not found")
-        }
-        if (thread.deletedAt != null) {
-            throw IllegalArgumentException("Thread is deleted")
-        }
+        val thread = validateThread(threadId, user)
 
         thread.chatName = dto.chatName
         threadRepository.save(thread)
@@ -272,9 +270,10 @@ class ChatService(
         question: String,
         relevantDocs: List<Document>,
     ): Boolean {
-        if (relevantDocs.isNotEmpty()) {
-            return false
-        }
+        val formatter =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                .withZone(ZoneId.of("Asia/Seoul"))
+        val todayDate = formatter.format(Instant.now())
 
         val checkSearchPrompt =
             Prompt(
@@ -283,9 +282,13 @@ class ChatService(
                         """
                         You are an AI assistant that determines if a web search would be helpful to answer a user's question.
                         Consider these factors:
-                        1. If the question is about general knowledge or facts that might be found online
-                        2. If the question requires up-to-date information
-                        3. If the question is specific enough that a web search could yield relevant results
+                        1. Today's date is $todayDate, and your knowledge is 2023-10
+                        2. If the question is about general knowledge or facts that might be found online
+                        3. If the question requires up-to-date information
+                        4. If the question is specific enough that a web search could yield relevant results
+                        5. Relevant documents have been searched and the results are displayed below:
+                        ${if (relevantDocs.isEmpty()) "(empty)" else ""}
+                        ${relevantDocs.joinToString(",\n") { "<Document start>\n${it.content}\n<Document end>" }}
                         
                         Respond with only 'true' if a web search would be helpful, or 'false' if it wouldn't be necessary.
                         """.trimIndent(),
@@ -387,49 +390,51 @@ class ChatService(
         val assistantMessage: MessageEntity = createAssistantMessage(thread)
         val chatMessage = StringBuilder()
 
-        try {
-            emitter.send(
-                SseEmitter.event().data(
-                    ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = question),
-                ),
-            )
+        threadPoolTaskExecutor.run {
+            try {
+                emitter.send(
+                    SseEmitter.event().data(
+                        ChatDto.SseMessageResponse(messageId = userMessage.id, role = userMessage.role, content = question),
+                    ),
+                )
 
-            // Search for relevant documents and perform web search if needed
-            val relevantDocs = searchRelevantDocuments(emitter, assistantMessage, user, question, messages)
-            if (shouldPerformWebSearch(question, relevantDocs)) {
-                performWebSearch(emitter, assistantMessage, question, messages)
-            }
+                // Search for relevant documents and perform web search if needed
+                val relevantDocs = searchRelevantDocuments(emitter, assistantMessage, user, question, messages)
+                if (shouldPerformWebSearch(question, relevantDocs)) {
+                    performWebSearch(emitter, assistantMessage, question, messages)
+                }
 
-            val prompt = Prompt(messages)
-            val responseFlux = chatModel.stream(prompt)
+                val prompt = Prompt(messages)
+                val responseFlux = chatModel.stream(prompt)
 
-            responseFlux.subscribe(
-                { chatResponse ->
-                    handleChatResponse(emitter, assistantMessage, chatMessage, chatResponse)
-                },
-                { error ->
-                    logger.error("채팅 응답 처리 중 오류 발생", error)
-                    emitter.send(
-                        SseEmitter.event().data(
-                            ChatDto.SseMessageResponse(
-                                messageId = assistantMessage.id,
-                                role = assistantMessage.role,
-                                content = "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.",
+                responseFlux.subscribe(
+                    { chatResponse ->
+                        handleChatResponse(emitter, assistantMessage, chatMessage, chatResponse)
+                    },
+                    { error ->
+                        logger.error("채팅 응답 처리 중 오류 발생", error)
+                        emitter.send(
+                            SseEmitter.event().data(
+                                ChatDto.SseMessageResponse(
+                                    messageId = assistantMessage.id,
+                                    role = assistantMessage.role,
+                                    content = "죄송합니다. 응답을 생성하는 중에 오류가 발생했습니다.",
+                                ),
                             ),
-                        ),
-                    )
-                    emitter.completeWithError(error)
-                },
-                {
-                    emitter.complete()
-                    assistantMessage.content = chatMessage.toString()
-                    messageRepository.save(assistantMessage)
-                },
-            )
-        } catch (e: Exception) {
-            logger.error("메시지 처리 중 오류 발생", e)
-            emitter.completeWithError(e)
-            throw e
+                        )
+                        emitter.completeWithError(error)
+                    },
+                    {
+                        emitter.complete()
+                        assistantMessage.content = chatMessage.toString()
+                        messageRepository.save(assistantMessage)
+                    },
+                )
+            } catch (e: Exception) {
+                logger.error("메시지 처리 중 오류 발생", e)
+                emitter.completeWithError(e)
+                throw e
+            }
         }
 
         return emitter
