@@ -433,16 +433,6 @@ class ChatService(
         question: String,
         messages: MutableList<Message>,
     ) {
-        emitter.send(
-            SseEmitter.event().data(
-                ChatDto.SseMessageResponse(
-                    messageId = assistantMessage.id,
-                    role = assistantMessage.role,
-                    content = "\n[Debug] Web search query: $webSearchQuery\n",
-                ),
-            ),
-        )
-
         val response =
             apiClient.searchNews(
                 query = webSearchQuery,
@@ -472,6 +462,8 @@ class ChatService(
         prompt += "If referenced, include the specific details at the end of your response."
         prompt += "For example:\n\n"
         prompt += "위 답변은 다음의 뉴스 기사를 참고했습니다:\n- \"참고한 문장 혹은 문단 1 (출처: 뉴스 제목 1).\"\n- \"참고한 문장 혹은 문단 2 (출처: 뉴스 제목 2).\"\n"
+
+        messages.add(0, SystemMessage(prompt))
     }
 
     private fun scrapNewsContent(url: String): String {
