@@ -319,7 +319,7 @@ class ChatService(
             documentService.searchSimilarDocuments(
                 user = user,
                 query = question,
-                threshold = 0.5,
+                threshold = 0.0,
                 topK = 5,
             )
 
