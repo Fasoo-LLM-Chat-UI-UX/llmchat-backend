@@ -8,6 +8,7 @@ import kr.ac.kau.llmchat.domain.user.UIThemeEnum
 
 sealed class UserDto {
     data class GetProfileResponse(
+        val loginType: LoginType,
         val username: String,
         val name: String,
         val mobileNumber: String?,

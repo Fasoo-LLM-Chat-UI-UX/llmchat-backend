@@ -7,4 +7,6 @@ interface SocialAccountRepository : JpaRepository<SocialAccountEntity, Long> {
         uid: String,
         provider: ProviderEnum,
     ): SocialAccountEntity?
+
+    fun findByUser(user: UserEntity): List<SocialAccountEntity>
 }
