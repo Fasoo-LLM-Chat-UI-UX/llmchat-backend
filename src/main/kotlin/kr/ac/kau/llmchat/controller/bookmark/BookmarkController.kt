@@ -40,6 +40,7 @@ class BookmarkController(
                     emoji = it.emoji,
                     userMessage = it.userMessage,
                     assistantMessage = it.assistantMessage,
+                    createdAt = it.createdAt,
                 )
             }
     }
@@ -62,6 +63,7 @@ class BookmarkController(
                     emoji = it.emoji,
                     userMessage = it.userMessage,
                     assistantMessage = it.assistantMessage,
+                    createdAt = it.createdAt,
                 )
             }
     }
@@ -81,6 +83,7 @@ class BookmarkController(
                     emoji = it.emoji,
                     userMessage = it.userMessage,
                     assistantMessage = it.assistantMessage,
+                    createdAt = it.createdAt,
                 )
             }
     }
@@ -101,6 +104,7 @@ class BookmarkController(
                     emoji = it.emoji,
                     userMessage = it.userMessage,
                     assistantMessage = it.assistantMessage,
+                    createdAt = it.createdAt,
                 )
             }
     }

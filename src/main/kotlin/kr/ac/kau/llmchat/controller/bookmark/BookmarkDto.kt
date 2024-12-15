@@ -1,5 +1,7 @@
 package kr.ac.kau.llmchat.controller.bookmark
 
+import java.time.Instant
+
 sealed class BookmarkDto {
     data class CreateRequest(
         val messageId: Long,
@@ -11,6 +13,7 @@ sealed class BookmarkDto {
         val emoji: String,
         val userMessage: String,
         val assistantMessage: String,
+        val createdAt: Instant,
     )
 
     data class UpdateRequest(
