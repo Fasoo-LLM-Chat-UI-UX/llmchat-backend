@@ -23,4 +23,11 @@ interface ThreadRepository : JpaRepository<ThreadEntity, Long> {
         user: UserEntity,
         pageable: Pageable,
     ): Page<ThreadEntity>
+
+    @Query("SELECT t FROM threads t WHERE t.user = :user AND t.chatName LIKE %:chatName% AND t.deletedAt IS NOT NULL")
+    fun findAllByUserAndChatNameContainsAndDeletedAtIsNotNull(
+        user: UserEntity,
+        chatName: String,
+        pageable: Pageable,
+    ): Page<ThreadEntity>
 }

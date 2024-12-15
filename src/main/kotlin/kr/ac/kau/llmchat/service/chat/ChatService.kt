@@ -142,8 +142,17 @@ class ChatService(
     fun getDeletedThreads(
         user: UserEntity,
         pageable: Pageable,
+        query: String?,
     ): Page<ThreadEntity> {
-        return threadRepository.findAllByUserAndDeletedAtIsNotNull(user = user, pageable = pageable)
+        return if (query == null) {
+            threadRepository.findAllByUserAndDeletedAtIsNotNull(user = user, pageable = pageable)
+        } else {
+            threadRepository.findAllByUserAndChatNameContainsAndDeletedAtIsNotNull(
+                user = user,
+                chatName = query,
+                pageable = pageable,
+            )
+        }
     }
 
     fun createThread(user: UserEntity): ThreadEntity {

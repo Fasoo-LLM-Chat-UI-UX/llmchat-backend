@@ -108,9 +108,11 @@ class ChatController(
         @Parameter(hidden = true)
         @PageableDefault(size = 100, sort = ["id"], direction = Sort.Direction.DESC)
         pageable: Pageable,
+        @RequestParam(required = false)
+        query: String?,
     ): Page<ChatDto.GetThreadResponse> {
         val user = SecurityContextHolder.getContext().authentication.principal as UserEntity
-        return chatService.getDeletedThreads(user = user, pageable = pageable)
+        return chatService.getDeletedThreads(user = user, pageable = pageable, query = query)
             .map { thread ->
                 ChatDto.GetThreadResponse(
                     id = thread.id,
