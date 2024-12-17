@@ -21,6 +21,7 @@ spring:
         options:
           model: gpt-4o
           temperature: 0.7
+      api-key: ${OPENAI_API_KEY}
     vectorstore:
       chroma:
         initialize-schema: true

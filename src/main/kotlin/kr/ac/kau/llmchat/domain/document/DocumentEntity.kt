@@ -28,7 +28,7 @@ class DocumentEntity(
     @Column(nullable = false, length = 255, columnDefinition = "VARCHAR(255)")
     @Enumerated(EnumType.STRING)
     var securityLevel: SecurityLevelEnum,
-    @Column(nullable = false)
+    @Column(nullable = true, length = 255, columnDefinition = "VARCHAR(255)")
     @CreationTimestamp
     var createdAt: Instant = Instant.EPOCH,
     @Column(nullable = false)
